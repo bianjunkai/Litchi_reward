@@ -1,0 +1,144 @@
+/* Local pixel-art details keep the adventure look available without external assets. */
+.pixel-art { display: inline-block; flex-shrink: 0; vertical-align: middle; image-rendering: pixelated; }
+body { background: radial-gradient(circle at 20% 12%, #fff9 0, transparent 26%), linear-gradient(#dcf3ff, #f3fbff 65%); }
+.brand strong { color: #254761; font-weight: 900; }
+.brand small { font-size: 9px; letter-spacing: .4px; }
+.brand > .pixel-art { filter: drop-shadow(0 3px 0 #7b3c2220); }
+.mario-banner { display: block; min-height: 316px; padding: 24px 32px 36px; border: 3px solid #2883bd; border-radius: 18px; background: #78c9f4; box-shadow: 0 6px 0 #b9deee, 0 15px 30px #337f9d14; isolation: isolate; }
+.mario-banner::after { content: none; }
+.world-hud { position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-family: ui-monospace, 'Courier New', monospace; font-size: 12px; font-weight: 900; letter-spacing: 1.5px; color: #174569; }
+.world-hud > span { display: inline-flex; align-items: center; gap: 8px; }
+.world-hud > span:last-child { background: #fff8db; border: 2px solid #e5b936; border-radius: 6px; padding: 4px 10px; color: #875410; box-shadow: 0 3px 0 #d59a2670; letter-spacing: .5px; }
+.hero-copy { position: relative; z-index: 1; width: 49%; padding-top: 24px; }
+.world-label { font-size: 11px; font-weight: 800; letter-spacing: 2px; color: #154c70; }
+.mario-banner h1 { display: flex; align-items: center; gap: 8px; margin: 12px 0; font-size: clamp(28px, 3.1vw, 39px); color: #fffdf0; text-shadow: 0 3px 0 #2c86b6; line-height: 1.2; white-space: nowrap; }
+.mario-banner p { color: #164a6b; opacity: 1; line-height: 1.8; font-size: 13px; margin-top: 0; }
+.adventure-button { display: inline-flex; align-items: center; gap: 10px; margin-top: 18px; padding: 10px 15px; border: 2px solid #a75026; border-radius: 7px; background: #ffdc67; color: #613d1e; font-size: 14px; font-weight: 900; box-shadow: 0 4px 0 #a75026; transition: transform .15s, box-shadow .15s; }
+.adventure-button > span { margin-left: 10px; }
+.adventure-button:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #a75026; }
+.adventure-button:active { transform: translateY(3px); box-shadow: 0 1px 0 #a75026; }
+.pixel-world { position: absolute; z-index: 0; width: 58%; height: auto; right: 0; bottom: 0; pointer-events: none; overflow: visible; }
+.world-coins { animation: world-float 3s ease-in-out infinite; }
+.world-mario { animation: world-hop 5s steps(2, end) infinite; }
+@keyframes world-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes world-hop { 0%,72%,100% { transform: translateY(0); } 80%,88% { transform: translateY(-13px); } }
+.section-heading .eyebrow { font-size: 10px; letter-spacing: 1.2px; color: #567f94; }
+.coin-count { display: inline-flex; align-items: center; gap: 7px; color: #8e671b; font-family: ui-monospace, monospace; }
+.asset-card { border: 2px solid #c3ddea; border-bottom: 5px solid var(--accent); border-radius: 12px; background: #fffef8; box-shadow: 0 4px 0 #c9e0e94d; min-height: 145px; }
+.asset-icon { display: flex; align-items: center; justify-content: center; width: 46px; height: 44px; margin-bottom: 12px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 12%, #fff); }
+.asset-card strong { font-family: ui-monospace, monospace; font-size: 30px; color: #2e4860; }
+.asset-card span { color: #5b788b; }
+.asset-card.inactive { opacity: .6; border-style: dashed; }
+.progress-card { border: 2px solid #e5bc54; border-radius: 13px; background: #fff9e5; box-shadow: 0 4px 0 #f1d989; }
+.progress-card .eyebrow { color: #8f691c; }
+.stars-row span.filled { text-shadow: 0 2px 0 #bf8d20; }
+.quick-links button { border: 2px solid #c3ddea; border-radius: 10px; box-shadow: 0 4px 0 #d2e7f0; }
+.quick-links button:first-child { border-color: #eac15c; background: #fff7da; box-shadow: 0 4px 0 #e8ce86; }
+.world-footer { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 32px 0 8px; }
+.world-footer span { color: #5f7b82; font-size: 11px; font-weight: 800; letter-spacing: .5px; }
+.home-summary > div { border: 1px solid #d2e6f0; border-radius: 12px; }
+.page-title h1 .pixel-art { margin-left: 3px; }
+.task-symbol { border: 2px solid #e5bc54; border-radius: 10px; box-shadow: 0 3px 0 #f1d989; }
+.task-card.completed .task-symbol { background: #e6f6dd; border-color: #69ac56; box-shadow: 0 3px 0 #c4e4b4; }
+.badge-medal { border-radius: 16px; box-shadow: 0 4px 0 color-mix(in srgb, var(--badge-color) 25%, #fff); }
+.badge-card { border: 2px solid #dce5e8; border-radius: 13px; }
+.badge-card.earned { border-color: #edc76b; }
+.product-card { border: 2px solid #d2e5ee; border-radius: 13px; }
+.product-icon { position: relative; border-radius: 8px; border-bottom: 4px solid #9ecc72; background: repeating-linear-gradient(0deg, transparent, transparent 20px, #fff5 20px, #fff5 21px), linear-gradient(#e0f4ff 70%, #e5f3d1 70%); }
+.product-footer button { border: 1px solid #c78b29; border-bottom-width: 3px; border-radius: 7px; }
+.bottom-nav { padding: 8px; gap: 4px; border: 2px solid #b7d2df; border-bottom: 5px solid #8eafbf; border-radius: 15px; }
+.bottom-nav button { min-width: 68px; border: 2px solid transparent; border-radius: 8px; }
+.bottom-nav button.active { background: #fff2be; color: #71501b; border-color: #efcd67; box-shadow: inset 0 -2px 0 #efd787; }
+.bottom-nav button span { margin-top: 3px; }
+.toast { border: 2px solid #f8d477; border-radius: 10px; box-shadow: 0 4px 0 #192c3d; }
+.reward-guide { background: #fffdf2; border: 2px solid #ead290; border-radius: 12px; padding: 18px; margin: 22px 0; }
+.reward-guide h2 { font-size: 18px; margin: 0 0 14px; }
+.reward-guide > p { color: #756341; font-size: 12px; line-height: 1.8; margin: 15px 0 0; }
+.reward-route { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.reward-route > div { display: grid; gap: 6px; justify-items: center; text-align: center; flex: 1; }
+.reward-route strong { font-size: 14px; color: #674c19; }
+.reward-route div > span { font-size: 12px; color: #806b45; }
+.route-arrow { color: #c4902a; font-weight: 900; }
+.reward-sources { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.reward-sources > div { display: grid; justify-items: center; gap: 8px; text-align: center; background: #fff4d7; border: 1px solid #ead290; border-radius: 10px; padding: 14px 10px; }
+.reward-sources > div:last-child { background: #edf8e9; border-color: #afd19e; }
+.reward-sources strong { font-size: 14px; color: #4f6243; }
+.reward-sources span { font-size: 12px; line-height: 1.7; color: #657256; }
+.sports-challenge { padding: 22px; margin: 22px 0; background: #f3fbea; border: 2px solid #91bc70; border-radius: 13px; box-shadow: 0 4px 0 #d0e5ba; }
+.sports-challenge-heading { display: flex; align-items: center; gap: 14px; }
+.sports-challenge h2 { margin: 5px 0 0; color: #3f6738; font-size: 23px; }
+.sports-challenge .eyebrow { color: #62834f; font-size: 10px; }
+.sports-challenge > p { font-size: 14px; line-height: 1.8; color: #526b47; }
+.sports-task-preview { list-style: none; margin: 16px 0; padding: 0; }
+.sports-task-preview li { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; border-top: 1px solid #d6e6c9; }
+.sports-task-preview small { display: block; margin-top: 6px; font-size: 12px; line-height: 1.7; color: #607852; }
+.sports-task-preview li > span { flex-shrink: 0; font-size: 12px; font-weight: 800; color: #8c6b27; }
+.sports-task-preview li > .completed { color: #37804d; }
+.sports-challenge-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sports-challenge-footer > span { font-size: 12px; color: #526b47; }
+.sports-challenge-footer button { background: #4c803e; flex-shrink: 0; font-size: 13px; }
+.sports-coupon-hint { display: block; margin-top: 14px; color: #607852; font-size: 12px; line-height: 1.7; }
+.adventure-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.adventure-filters button { padding: 10px 16px; border: 2px solid #c3ddea; border-radius: 10px; background: #fff; color: #476579; font-weight: 800; }
+.adventure-filters button[aria-pressed="true"] { background: #edf8e9; color: #3f6738; border-color: #91bc70; }
+.badge-coupon-progress { background: #f0f7ff; border-color: #9cbce3; box-shadow: 0 4px 0 #c3d8f0; }
+.badge-progress-icons { display: flex; justify-content: center; gap: 7px; margin-bottom: 7px; }
+.badge-progress-icons > span { font-size: 26px; filter: grayscale(1); opacity: .35; }
+.badge-progress-icons > .filled { filter: none; opacity: 1; }
+.coupon-caption { display: block; margin-top: 9px; color: #5b6888; font-size: 11px; line-height: 1.6; }
+.coupon-policy p { font-size: 13px; line-height: 1.8; color: #5b7183; margin-bottom: 0; }
+.badge-emblem { position: relative; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; border-radius: 8px; padding: 3px; background: color-mix(in srgb, var(--emblem-color) 18%, white); border-bottom: 3px solid var(--emblem-color); }
+.emblem-mark { margin-left: -8px; align-self: flex-start; --pixel-accent: var(--emblem-color); }
+.settlement-card { border-top: 1px solid #dbe8ef; padding: 12px 0 22px; }
+.settlement-card > .redemption-row { border: 0; }
+.settlement-card p { line-height: 1.7; font-size: 13px; }
+.settlement-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.settlement-preview { display: flex; flex-wrap: wrap; gap: 10px 18px; padding: 12px; border: 1px solid #dfcd9a; border-radius: 10px; background: #fff8e3; color: #725b2e; font-size: 13px; }
+.editor-form .checkbox-row { display: flex; flex-direction: row; align-items: center; gap: 10px; line-height: 1.6; }
+.operation-kind { color: #387992 !important; font-weight: 800; margin-bottom: 5px; }
+@media (max-width: 800px) {
+  .mario-banner { min-height: 410px; padding: 19px 22px 158px; }
+  .hero-copy { width: 100%; padding-top: 24px; }
+  .mario-banner h1 { font-size: 31px; }
+  .pixel-world { width: 100%; }
+  .world-hud { font-size: 10px; letter-spacing: .7px; }
+  .world-hud > span { gap: 4px; }
+  .world-hud > span:last-child { padding: 3px 6px; }
+  .asset-card:last-child { flex-direction: row; align-items: center; justify-content: flex-start; gap: 16px; min-height: 96px; }
+  .asset-card:last-child .asset-icon { margin-bottom: 0; }
+  .bottom-nav button { min-width: 53px; padding: 5px 7px; }
+}
+@media (max-width: 480px) {
+  .reward-sources { grid-template-columns: 1fr; }
+  .sports-challenge { padding: 18px; }
+  .sports-challenge h2 { font-size: 21px; }
+  .sports-challenge-footer { align-items: flex-start; flex-direction: column; }
+  .sports-task-preview li { align-items: flex-start; }
+  .reward-guide { padding: 15px 10px; }
+  .reward-route { gap: 4px; }
+  .reward-route strong { font-size: 11px; }
+  .reward-route div > span { font-size: 10px; }
+  .settlement-inputs { grid-template-columns: 1fr; }
+  .brand small { max-width: 112px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .brand strong { font-size: 16px; }
+  .lock-button { padding: 7px; font-size: 11px; }
+  .mario-banner { min-height: 385px; padding: 15px 17px 126px; }
+  .mario-banner h1 { font-size: 27px; gap: 5px; }
+  .mario-banner h1 .pixel-art { width: 30px; height: 30px; }
+  .world-hud { font-size: 9px; letter-spacing: 0; }
+  .world-hud > span:first-child { gap: 3px; }
+  .world-hud > span:first-child .pixel-art { width: 17px; height: 17px; }
+  .world-hud > span:nth-child(2) { font-size: 8px; }
+  .hero-copy { padding-top: 21px; }
+  .adventure-button { font-size: 13px; margin-top: 13px; }
+  .asset-grid { gap: 10px; }
+  .asset-card { padding: 14px; min-height: 140px; }
+  .bottom-nav { width: min(calc(100% - 20px), 400px); justify-content: space-between; }
+  .bottom-nav button { min-width: 0; flex: 1; padding: 5px; }
+  .world-footer { gap: 8px; }
+  .world-footer span { font-size: 10px; letter-spacing: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .world-coins, .world-mario, .view { animation: none; }
+  .adventure-button { transition: none; }
+}

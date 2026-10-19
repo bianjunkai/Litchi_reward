@@ -1,0 +1,116 @@
+/* Page structure: child overview, focused detail pages, separate parent workspace. */
+.topbar { height: 66px; padding: 10px max(14px, calc((100vw - 1120px) / 2)); gap: 10px; }
+button.brand { padding: 0; background: none; text-align: left; color: inherit; }
+.brand > span { min-width: 0; }
+.brand small { font-size: 9px; }
+.topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+.parent-entry { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 38px; padding: 8px 10px; background: #fff5d9; border: 1px solid #e8d294; border-radius: 9px; color: #71521c; font-size: 12px; font-weight: 800; }
+.page-wrap { width: min(1120px, calc(100% - 32px)); margin: 22px auto; }
+.page-wrap:focus { outline: none; }
+.text-button { display: inline-flex; align-items: center; padding: 8px 0; min-height: 36px; background: none; color: #277b9e; font-size: 12px; font-weight: 800; text-align: left; }
+.module-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.module-heading h2 { margin: 0; font-size: 20px; }
+.module-heading > span { color: #637e8b; font-size: 12px; }
+.home-module { margin-top: 23px; }
+.module-caption { margin: 10px 0 0; color: #6b8393; font-size: 11px; line-height: 1.6; }
+.compact-home { max-width: 960px; margin: 0 auto; }
+.compact-home .compact-banner { min-height: 218px; padding: 15px 22px 25px; }
+.compact-home .hero-copy { padding-top: 13px; width: 65%; }
+.compact-home .mario-banner h1 { font-size: 30px; margin: 8px 0; }
+.compact-home .mario-banner p { margin: 8px 0 0; font-size: 13px; }
+.compact-home .adventure-button { margin-top: 10px; font-size: 13px; padding: 8px 12px; min-height: 40px; }
+.compact-home .pixel-world { width: 46%; }
+.inventory-overview, .challenge-overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.inventory-overview > button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; min-height: 130px; padding: 13px 6px; border: 2px solid #c5dfea; border-bottom: 4px solid var(--accent); border-radius: 12px; background: #fffef8; color: #314d62; }
+.inventory-overview strong { font: 900 28px/1 ui-monospace, monospace; }
+.inventory-overview button > span:not(.badge-emblem) { font-size: 13px; }
+.inventory-overview button > small { font-size: 10px; }
+.inventory-overview .badge-emblem { padding: 2px; border-bottom-width: 2px; }
+.challenge-overview > button { display: grid; justify-items: center; gap: 7px; padding: 14px 6px; background: #fff; border: 2px solid #d2e5ec; border-top: 4px solid var(--accent); border-radius: 12px; color: #314d62; }
+.challenge-icon { font-size: 26px; }
+.challenge-overview strong { font-size: 15px; }
+.challenge-overview small { color: #68818c; font-size: 11px; }
+.challenge-status { color: #876423; background: #fff5d9; border-radius: 6px; padding: 4px 8px; font-size: 11px; }
+.challenge-overview .completed { background: #f1faec; border-color: #b5d5a0; }
+.completed .challenge-status { background: #e1f1d6; color: #467538; }
+.next-goal { padding: 20px; background: #fff9e6; border: 2px solid #eac76a; border-radius: 13px; }
+.next-goal .module-heading { margin-bottom: 8px; }
+.next-goal h3 { font-size: 17px; margin: 7px 0 14px; color: #725724; }
+.next-goal p { margin: 11px 0 3px; color: #876f43; font-size: 12px; line-height: 1.7; }
+.goal-meter { display: flex; align-items: center; gap: 14px; }
+.goal-meter progress { flex: 1; min-width: 0; height: 13px; appearance: none; border: 0; background: #efdfae; border-radius: 20px; overflow: hidden; accent-color: #e8ae29; }
+.goal-meter progress::-webkit-progress-bar { background: #efdfae; border-radius: 20px; }
+.goal-meter progress::-webkit-progress-value { background: #e8ae29; border-radius: 20px; }
+.goal-meter progress::-moz-progress-bar { background: #e8ae29; border-radius: 20px; }
+.goal-meter strong { font-size: 12px; color: #836224; white-space: nowrap; }
+.goal-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; }
+.section-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
+.section-tabs a { display: inline-flex; justify-content: center; align-items: center; min-height: 42px; padding: 10px 14px; background: #fff; color: #526f80; border: 2px solid #c7dfea; border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 800; }
+.section-tabs a[aria-current="page"] { background: #fff3c6; color: #76551c; border-color: #e7c465; }
+a:focus-visible { outline: 3px solid #2088c1; outline-offset: 3px; }
+.page-note { font-size: 13px; line-height: 1.9; color: #60798a; margin: 12px 0 20px; }
+.empty-state { text-align: center; padding: 30px; }
+.empty-state p { color: #6b8393; line-height: 1.8; }
+.task-direct-badge { display: block; color: #5e814f; font-size: 11px; margin-top: 10px; line-height: 1.6; }
+.backpack-assets { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.backpack-assets .asset-card:last-child { grid-column: auto; flex-direction: column; align-items: flex-start; gap: 0; min-height: 145px; }
+.backpack-assets .asset-card:last-child .asset-icon { margin-bottom: 12px; }
+.backpack-parent-action { margin: 18px 0; }
+.coupon-wallet { display: flex; align-items: center; gap: 25px; background: #fffcef; border: 2px solid #ead291; }
+.coupon-wallet h2 { margin: 0 0 14px; }
+.coupon-wallet strong { font-size: 42px; color: #547fc3; }
+.coupon-wallet strong small { font-size: 16px; }
+.coupon-wallet p { color: #6b8393; }
+.shop-wallet { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.shop-wallet > span { font-size: 14px; color: #4b6880; }
+.product-footer { gap: 8px; flex-wrap: wrap; }
+.parent-shell { padding-bottom: 24px; }
+.parent-shell .page-wrap { max-width: 1000px; }
+.parent-shell .toast { bottom: 24px; }
+.parent-pending .text-button { margin-top: 12px; }
+.parent-tabs { padding-bottom: 8px; border-bottom: 1px solid #c7dfea; }
+.child-nav { width: min(calc(100% - 24px), 410px); justify-content: space-between; }
+.child-nav a { display: flex; flex: 1; min-width: 0; min-height: 55px; flex-direction: column; align-items: center; justify-content: center; padding: 5px 8px; text-decoration: none; border: 2px solid transparent; border-radius: 8px; color: #7b96a6; }
+.child-nav a > span { font-size: 11px; font-weight: 900; margin-top: 5px; }
+.child-nav a.active { background: #fff2be; color: #71501b; border-color: #efcd67; box-shadow: inset 0 -2px 0 #efd787; }
+@media (max-width: 800px) {
+  .page-wrap { width: min(calc(100% - 24px), 620px); margin-top: 16px; }
+  .compact-home .compact-banner { min-height: 218px; padding: 15px 18px 25px; }
+  .compact-home .hero-copy { width: 100%; padding-top: 12px; }
+  .compact-home .pixel-world { width: 48%; }
+  .inventory-overview, .challenge-overview { gap: 8px; }
+  .inventory-overview > button { min-height: 112px; padding: 11px 4px; }
+  .inventory-overview button > span:not(.badge-emblem) { font-size: 12px; }
+  .challenge-overview > button { padding: 12px 4px; gap: 6px; }
+  .challenge-overview strong { font-size: 14px; }
+  .backpack-assets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .brand { gap: 7px; }
+  .brand strong { font-size: 16px; }
+  .brand small { max-width: 100px; font-size: 8px; }
+  .topbar { padding: 10px 12px; }
+  .parent-entry { font-size: 11px; padding: 7px 8px; }
+  .refresh-button { width: 32px; height: 32px; }
+  .topbar-actions { gap: 6px; }
+  .compact-home .mario-banner h1 { font-size: 27px; }
+  .compact-home .mario-banner p { font-size: 12px; }
+  .compact-home .adventure-button { font-size: 12px; }
+  .module-heading h2 { font-size: 18px; }
+  .home-module { margin-top: 20px; }
+  .module-heading { gap: 8px; }
+  .module-heading > span { font-size: 11px; }
+  .challenge-overview small { font-size: 10px; }
+  .challenge-status { padding: 4px 6px; font-size: 10px; }
+  .next-goal { padding: 16px; }
+  .goal-actions { gap: 8px; }
+  .goal-actions .secondary-button { font-size: 12px; padding: 9px 11px; }
+  .section-tabs { gap: 6px; }
+  .section-tabs a { padding: 9px 10px; font-size: 12px; }
+  .page-title h1 { font-size: 29px; }
+  .parent-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .parent-shell .summary-grid { gap: 8px; }
+  .shop-wallet { flex-wrap: wrap; }
+  .product-footer button { font-size: 12px; padding: 10px; }
+  .goal-meter { gap: 8px; }
+}

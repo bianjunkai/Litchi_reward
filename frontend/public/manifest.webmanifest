@@ -1,0 +1,9 @@
+{
+  "name": "超级马里奥家庭奖励中心",
+  "short_name": "奖励城堡",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e7f7ff",
+  "theme_color": "#1f8ed4",
+  "icons": [{"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]
+}
