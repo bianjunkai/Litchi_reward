@@ -11,7 +11,6 @@ import { badgeColors, formatMoney } from '../reward-rules.js'
 const props = defineProps({ dashboard: Object, badges: Array, section: String, api: Function, refreshVersion: Number, offline: Boolean })
 const badgeHistory = ref(null)
 const emit = defineEmits(['navigate','refresh','notify'])
-const earnedCount = computed(() => props.badges.reduce((sum, badge) => sum + badge.earned_count, 0))
 const availableCount = computed(() => props.dashboard.badge_progress.available)
 const starAssets = computed(() => props.dashboard.assets.filter(asset => asset.code !== 'coupon'))
 const badgeColorName = color => badgeColors.find(item => item.value === color)?.label || '其他颜色'
@@ -36,14 +35,13 @@ const showBadgeRecords = async id => {
     </template>
 
     <template v-else-if="section === 'badges'">
-      <div class="module-heading"><h2>徽章收藏室</h2><span>累计 {{ earnedCount }} · 可用 {{ availableCount }}</span></div>
-      <p class="page-note">换券后可用徽章会减少，历史收藏仍保留。下方彩色数量显示尚未兑换的徽章。</p>
+      <div class="module-heading"><h2>徽章收藏室</h2></div>
+      <p class="page-note">展示当前还可使用的徽章。换券后，已使用的徽章会收进下方历史徽章展柜。</p>
       <div class="badge-grid"><article v-for="badge in badges" :key="badge.id" class="badge-card" :class="{earned: badge.earned_count}" :style="{'--badge-color': badge.color}">
         <div class="badge-medal"><BadgeEmblem :code="badge.code" :color="badge.color" :size="44" /></div>
         <h2>{{ badge.name }}</h2><p>{{ badge.description }}</p>
         <div class="badge-count">当前可用 {{ badge.available_count }} 枚</div>
-        <div v-if="badge.colors?.length" class="badge-color-collection" :aria-label="`${badge.name}各颜色未兑换数量`"><span v-for="variant in badge.colors" :key="variant.color" :title="`${badgeColorName(variant.color)}：未兑换 ${variant.available_count} 枚，历史收藏 ${variant.count} 枚`"><BadgeEmblem :code="badge.code" :color="variant.color" :size="24" /><b>{{ badgeColorName(variant.color) }} {{ variant.available_count }}</b></span></div>
-        <p class="badge-collection-total">历史收藏 {{ badge.earned_count }} 枚 · 已用 {{ badge.earned_count - badge.unspent_count }} 枚</p>
+        <div v-if="badge.colors?.some(variant => variant.available_count > 0)" class="badge-color-collection" :aria-label="`${badge.name}可用颜色数量`"><span v-for="variant in badge.colors.filter(item => item.available_count > 0)" :key="variant.color" :title="`${badgeColorName(variant.color)}：当前可用 ${variant.available_count} 枚`"><BadgeEmblem :code="badge.code" :color="variant.color" :size="24" /><b>{{ badgeColorName(variant.color) }} × {{ variant.available_count }}</b></span></div>
         <p v-if="!badge.active">暂未启用，不参与兑换</p><button class="text-button" @click="showBadgeRecords(badge.id)">查看获得记录 →</button>
       </article></div>
       <section class="progress-card badge-coupon-progress"><div class="progress-copy"><span class="eyebrow">徽章 → 兑换券</span><h2>{{ availableCount >= 5 ? '可以兑换一张券啦！' : `还差 ${5 - availableCount} 枚可用徽章` }}</h2><p>任意 5 枚已启用、未兑换的徽章，换 1 张 ¥39.90 券。</p></div><div class="star-progress"><div class="badge-progress-icons" aria-hidden="true"><span v-for="index in 5" :key="index" :class="{filled: index <= availableCount}">🏅</span></div><small>{{ Math.min(availableCount, 5) }} / 5</small></div></section>
