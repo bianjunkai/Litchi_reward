@@ -13,7 +13,7 @@ const route = ref(parseRoute(window.location.hash))
 const dashboard = ref(null)
 const tasks = ref([])
 const badges = ref([])
-const history = ref([])
+const refreshVersion = ref(0)
 const products = ref([])
 const token = ref('')
 const expiresAt = ref(0)
@@ -83,11 +83,10 @@ const refresh = async () => {
       api('/api/badges?child_id=1', {}, isList),
       api('/api/shop', {}, isList),
       api('/api/auth/status', {}, value => typeof value?.setup_required === 'boolean'),
-      api('/api/badges/history?child_id=1', {}, isList),
     ])
     ;[dashboard.value, tasks.value, badges.value, products.value] = data
     setupRequired.value = data[4].setup_required
-    history.value = data[5]
+    refreshVersion.value++
   } catch (err) { error.value = err.message }
   finally { loading.value = false }
 }
@@ -117,24 +116,17 @@ const login = async () => {
   } catch (err) { if (route.value.page === 'parent' && requestEpoch === authEpoch) authError.value = err.message }
   finally { busy.value = false }
 }
-const requestProduct = async product => {
-  if (busy.value || error.value) return
-  busy.value = true
-  try {
-    const result = await api('/api/redemptions', { method: 'POST', body: JSON.stringify({ child_id: 1, product_id: product.id }) })
-    notify(result.message)
-  } catch (err) { notify(err.message) }
-  finally { busy.value = false }
-}
-
 watch(() => route.value.page + '/' + route.value.section, async () => {
+  if (route.value.page !== 'parent') void refresh()
   await nextTick()
   main.value?.focus({ preventScroll: true })
   window.scrollTo({ top: 0, behavior: 'instant' })
 })
+const refreshOnFocus = () => { if (document.visibilityState==='visible' && route.value.page!=='parent') void refresh() }
 onMounted(() => {
   refresh()
   window.addEventListener('hashchange', syncRoute)
+  document.addEventListener('visibilitychange', refreshOnFocus)
   expiryTimer = setInterval(() => {
     if (token.value && Date.now() >= expiresAt.value) { lock(); notify('家长会话已到期') }
   }, 1000)
@@ -143,6 +135,7 @@ onUnmounted(() => {
   clearTimeout(toastTimer)
   clearInterval(expiryTimer)
   window.removeEventListener('hashchange', syncRoute)
+  document.removeEventListener('visibilitychange', refreshOnFocus)
 })
 </script>
 
@@ -166,8 +159,8 @@ onUnmounted(() => {
       <template v-if="dashboard">
         <HomePage v-if="route.page === 'home'" :dashboard="dashboard" :tasks="tasks" :badges="badges" @navigate="navigate" />
         <AdventuresPage v-else-if="route.page === 'adventures'" :tasks="tasks" :badges="badges" :category="route.section" :offline="!!error" @navigate="navigate" />
-        <BackpackPage v-else-if="route.page === 'backpack'" :dashboard="dashboard" :badges="badges" :history="history" :section="route.section" @navigate="navigate" />
-        <ShopPage v-else-if="route.page === 'shop'" :dashboard="dashboard" :products="products" :busy="busy" :offline="!!error" @request="requestProduct" @navigate="navigate" />
+        <BackpackPage v-else-if="route.page === 'backpack'" :dashboard="dashboard" :badges="badges" :section="route.section" :api="api" :refresh-version="refreshVersion" :offline="!!error" @navigate="navigate" @refresh="refresh" @notify="notify" />
+        <ShopPage v-else-if="route.page === 'shop'" :dashboard="dashboard" :products="products" :api="api" :section="route.section" :refresh-version="refreshVersion" :offline="!!error" @navigate="navigate" @notify="notify" @refresh="refresh" />
         <section v-else-if="route.page === 'parent'" class="view parent-view">
           <form v-if="!token" class="pin-card" @submit.prevent="login">
             <div class="lock"><PixelArt kind="crown" :size="48" /></div><h1>{{ setupRequired ? '设置家长 PIN' : '家长中心' }}</h1>
@@ -178,7 +171,7 @@ onUnmounted(() => {
             <button class="primary-button" :disabled="busy || !!error">{{ busy ? '正在验证…' : setupRequired ? '设置并进入' : '解锁控制台' }}</button>
             <small>返回孩子模式会自动锁定；解锁会话最长 30 分钟。</small>
           </form>
-          <ParentConsole v-else :key="token" :api="api" :dashboard="dashboard" :tasks="tasks" :offline="!!error" :section="route.section" @navigate="section => navigate('parent', section)" @changed="refresh" @notify="notify" @lock="lock" />
+          <ParentConsole v-else :key="token" :api="api" :dashboard="dashboard" :tasks="tasks" :offline="!!error" :section="route.section" :refresh-version="refreshVersion" @navigate="section => navigate('parent', section)" @changed="refresh" @notify="notify" @lock="lock" @child-shop="navigate('shop','catalog')" />
         </section>
       </template>
     </main>

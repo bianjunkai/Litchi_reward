@@ -31,6 +31,14 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 details.panel summary { font-size: 18px; font-weight: 800; cursor: pointer; padding: 5px 0; }
 details.panel[open] summary { margin-bottom: 16px; }
 .editor-form { display: grid; gap: 12px; margin: 16px 0; }
+.resource-editor { min-width: 0; }
+.resource-editor .editor-form, .resource-editor .editor-form label { width: 100%; min-width: 0; }
+.resource-editor .editor-form input:not([type=checkbox]), .resource-editor .editor-form select { min-width: 0; max-width: 100%; }
+.badge-adjust-form { padding-top: 16px; border-top: 1px solid #edf2f4; }
+.badge-adjust-form h3 { margin: 0; color: #38566c; font-size: 16px; }
+.badge-color-collection { display: flex; justify-content: center; flex-wrap: wrap; gap: 7px; margin: 2px 0 12px; }
+.badge-color-collection > span { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px; border: 1px solid #e4ebef; border-radius: 8px; background: #f8fbfc; color: #536c7e; font-size: 11px; }
+.badge-color-collection .badge-emblem { padding: 1px; }
 .editor-form label { display: grid; gap: 6px; color: #526b7d; font-size: 14px; }
 .editor-form input:not([type=checkbox]), .editor-form select { width: 100%; min-height: 43px; padding: 9px 12px; border: 1px solid #bcd4e3; border-radius: 10px; background: white; font: inherit; color: #24324a; }
 .editor-form input[type=checkbox] { width: 22px; height: 22px; }

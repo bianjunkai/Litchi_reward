@@ -9,11 +9,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from database import SCHEMA, utc_now
+from product_images import validate_image
 from reward_rules import (BADGE_CODES, BADGE_COLORS, COUPON_VALUE_FEN, MAX_COUPONS_PER_USE,
                           RULE_VERSION, STAR_CODES, normalize_legacy_data)
 
 TABLES = ('children','asset_types','badges','products','tasks','operations','child_assets',
-          'task_claims','child_badges','redemptions','ledger','audit_logs')
+          'task_claims','child_badges','coupon_requests','coupon_request_badges','redemptions','ledger','audit_logs')
 
 
 class BackupInput(BaseModel):
@@ -24,7 +25,7 @@ class BackupInput(BaseModel):
 
 def register_backups(app, get_db, parent, path, rules_model, read_rules, audit):
     def export_data(db):
-        return {'version':2,'exported_at':utc_now(),
+        return {'version':3,'exported_at':utc_now(),
                 'tables':{t:[dict(r) for r in db.execute(f'SELECT * FROM {t}')] for t in TABLES},
                 'rules':{k:str(v) for k,v in read_rules(db).items()}}
 
@@ -39,8 +40,14 @@ def register_backups(app, get_db, parent, path, rules_model, read_rules, audit):
             raise HTTPException(413,'备份文件不能超过 8MB')
         try:
             payload = BackupInput.model_validate_json(raw)
-            if payload.version not in (1,2) or set(payload.tables)!=set(TABLES):
+            if payload.version in (1,2):
+                payload.tables.setdefault('coupon_requests',[])
+                payload.tables.setdefault('coupon_request_badges',[])
+            if payload.version not in (1,2,3) or set(payload.tables)!=set(TABLES):
                 raise ValueError('备份版本或数据表不匹配')
+            for product in payload.tables['products']:
+                product.setdefault('image_data', '')
+                validate_image(product['image_data'])
             if payload.version==1:
                 additions = {
                     'tasks':{'badge_color':None}, 'products':{'cash_price_fen':None},
@@ -88,6 +95,19 @@ def register_backups(app, get_db, parent, path, rules_model, read_rules, audit):
                     raise ValueError('备份奖励规则不合法')
                 if sandbox.execute("SELECT 1 FROM redemptions WHERE status NOT IN ('pending','approved','rejected','reversed')").fetchone():
                     raise ValueError('备份兑换状态不合法')
+                for request_id,child_id,status,op_id in sandbox.execute('SELECT id,child_id,status,operation_id FROM coupon_requests'):
+                    selected = sandbox.execute('''SELECT cb.child_id,cb.spent_operation_id FROM coupon_request_badges link
+                        JOIN child_badges cb ON cb.id=link.child_badge_id WHERE link.request_id=?''',(request_id,)).fetchall()
+                    if len(selected)!=5 or any(row[0]!=child_id for row in selected):
+                        raise ValueError('换券申请必须关联同一个孩子的 5 枚徽章')
+                    if status in ('approved','reversed'):
+                        op = sandbox.execute('SELECT child_id,kind,reversed_at FROM operations WHERE id=?',(op_id,)).fetchone()
+                        if not op or op[0]!=child_id or op[1]!='badges_to_coupon' or bool(op[2])!=(status=='reversed'):
+                            raise ValueError('换券审批与记账操作不一致')
+                        if status=='approved' and any(row[1]!=op_id for row in selected):
+                            raise ValueError('换券审批与徽章扣除不一致')
+                    elif op_id is not None:
+                        raise ValueError('尚未批准的换券申请不能关联资产操作')
                 life = sandbox.execute("SELECT threshold FROM badges WHERE code='life'").fetchone()
                 if not life or life[0]!=settings.badge_ratio:
                     raise ValueError('生活徽章规则不一致')

@@ -7,7 +7,7 @@ export const childTabs = [
 
 export const parentTabs = [
   { id: 'today', label: '今日工作台' }, { id: 'exchange', label: '兑换中心' },
-  { id: 'tasks', label: '任务管理' }, { id: 'products', label: '商品管理' },
+  { id: 'tasks', label: '任务管理' }, { id: 'products', label: '奖励上架' },
   { id: 'badges', label: '徽章管理' }, { id: 'records', label: '记录与纠错' },
   { id: 'settings', label: '家庭设置' },
 ]
@@ -23,8 +23,10 @@ export const adventureTabs = [
   { id: 'sports', label: '🍄 体育' },
 ]
 
+export const shopTabs = [{ id: 'catalog', label: '礼物架' }, { id: 'requests', label: '我的申请' }]
+
 const sections = {
-  home: [''], shop: [''], adventures: adventureTabs.map(tab => tab.id),
+  home: [''], shop: shopTabs.map(tab => tab.id), adventures: adventureTabs.map(tab => tab.id),
   backpack: backpackTabs.map(tab => tab.id), parent: parentTabs.map(tab => tab.id),
 }
 

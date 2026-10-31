@@ -1,6 +1,16 @@
+x-build-proxy: &build-proxy
+  HTTP_PROXY: ${BUILD_PROXY:-}
+  HTTPS_PROXY: ${BUILD_PROXY:-}
+  NO_PROXY: ${BUILD_NO_PROXY:-localhost,127.0.0.1,api,web}
+  http_proxy: ${BUILD_PROXY:-}
+  https_proxy: ${BUILD_PROXY:-}
+  no_proxy: ${BUILD_NO_PROXY:-localhost,127.0.0.1,api,web}
+
 services:
   api:
-    build: ./backend
+    build:
+      context: ./backend
+      args: *build-proxy
     environment:
       DB_PATH: /app/data/rewards.db
       PARENT_PIN: ${PARENT_PIN:-}
@@ -16,10 +26,12 @@ services:
     restart: unless-stopped
 
   web:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args: *build-proxy
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "8080:80"
+      - "${WEB_PORT:-18736}:80"
     restart: unless-stopped

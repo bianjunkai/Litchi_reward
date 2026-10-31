@@ -1,4 +1,4 @@
-const CACHE = 'family-rewards-shell-v6'
+const CACHE = 'family-rewards-shell-v13'
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {

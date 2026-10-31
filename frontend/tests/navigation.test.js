@@ -1,18 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { childTabs, parentTabs, backpackTabs, adventureTabs, parseRoute, routeHash } from '../src/navigation.js'
+import { childTabs, parentTabs, backpackTabs, adventureTabs, shopTabs, parseRoute, routeHash } from '../src/navigation.js'
 
 test('Child navigation has exactly four destinations, not an administrative tab', () => {
   assert.deepEqual(childTabs.map(tab => tab.page), ['home', 'adventures', 'backpack', 'shop'])
   assert.deepEqual(parseRoute(), { page: 'home', section: '' })
   assert.deepEqual(parseRoute('#/badges'), { page: 'backpack', section: 'badges' })
+  assert.equal(parentTabs.find(tab => tab.id === 'products').label, '奖励上架')
 })
 
 test('All subpages round-trip through shareable, reload-safe hash routes', () => {
-  for (const [page, tabs] of [['parent', parentTabs], ['backpack', backpackTabs], ['adventures', adventureTabs]]) {
+  for (const [page, tabs] of [['parent', parentTabs], ['backpack', backpackTabs], ['adventures', adventureTabs], ['shop', shopTabs]]) {
     for (const tab of tabs) assert.deepEqual(parseRoute(routeHash(page, tab.id)), { page, section: tab.id })
   }
-  assert.deepEqual(parseRoute('#/shop'), { page: 'shop', section: '' })
+  assert.deepEqual(parseRoute('#/shop'), { page: 'shop', section: 'catalog' })
   assert.deepEqual(parseRoute('#/parent'), { page: 'parent', section: 'today' })
 })
 

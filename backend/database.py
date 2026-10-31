@@ -69,9 +69,18 @@ CREATE TABLE IF NOT EXISTS child_badges (
  badge_id INTEGER NOT NULL REFERENCES badges(id), reason TEXT NOT NULL DEFAULT '', earned_at TEXT NOT NULL,
  operation_id INTEGER REFERENCES operations(id), spent_operation_id INTEGER REFERENCES operations(id),
  reversed_at TEXT, color TEXT NOT NULL DEFAULT '#f0aa37');
+CREATE TABLE IF NOT EXISTS coupon_requests (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, child_id INTEGER NOT NULL REFERENCES children(id),
+ status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected','reversed')),
+ requested_at TEXT NOT NULL, processed_at TEXT, operation_id INTEGER UNIQUE REFERENCES operations(id));
+CREATE TABLE IF NOT EXISTS coupon_request_badges (
+ request_id INTEGER NOT NULL REFERENCES coupon_requests(id), child_badge_id INTEGER NOT NULL REFERENCES child_badges(id),
+ PRIMARY KEY(request_id,child_badge_id));
+CREATE UNIQUE INDEX IF NOT EXISTS one_pending_coupon_request ON coupon_requests(child_id) WHERE status='pending';
 CREATE TABLE IF NOT EXISTS products (
  id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
- icon TEXT NOT NULL DEFAULT '🎁', price INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1, cash_price_fen INTEGER);
+ icon TEXT NOT NULL DEFAULT '🎁', price INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1, cash_price_fen INTEGER,
+ image_data TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS redemptions (
  id INTEGER PRIMARY KEY AUTOINCREMENT, child_id INTEGER NOT NULL REFERENCES children(id),
  product_id INTEGER NOT NULL REFERENCES products(id), status TEXT NOT NULL DEFAULT 'pending',
@@ -104,6 +113,23 @@ CREATE TRIGGER IF NOT EXISTS nonnegative_update BEFORE UPDATE OF balance ON chil
 def init_db(path, initial_pin=None):
     db = connect(path)
     try:
+        request_safety_path = Path(str(path)+'.pre-coupon-requests.db')
+        old_badges = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='child_badges'").fetchone()
+        has_requests = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='coupon_requests'").fetchone()
+        if old_badges and not has_requests and not request_safety_path.exists():
+            target = sqlite3.connect(str(request_safety_path))
+            try:
+                db.backup(target)
+            finally:
+                target.close()
+        product_columns = {r['name'] for r in db.execute('PRAGMA table_info(products)')}
+        image_safety_path = Path(str(path)+'.pre-product-images.db')
+        if product_columns and 'image_data' not in product_columns and not image_safety_path.exists():
+            target = sqlite3.connect(str(image_safety_path))
+            try:
+                db.backup(target)
+            finally:
+                target.close()
         has_settings = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='settings'").fetchone()
         family_safety_path = Path(str(path)+'.pre-family-v1.db')
         if has_settings and not db.execute("SELECT 1 FROM settings WHERE key='family_rules_version'").fetchone() and not family_safety_path.exists():
@@ -123,7 +149,7 @@ def init_db(path, initial_pin=None):
         db.executescript(SCHEMA)
         upgrades = {
             'tasks': {'badge_id':'INTEGER REFERENCES badges(id)', 'badge_color':'TEXT'},
-            'products': {'cash_price_fen':'INTEGER'},
+            'products': {'cash_price_fen':'INTEGER', 'image_data':"TEXT NOT NULL DEFAULT ''"},
             'operations': {'rule_version':"TEXT NOT NULL DEFAULT 'legacy'"},
             'task_claims': {'operation_id':'INTEGER REFERENCES operations(id)', 'reversed_at':'TEXT'},
             'child_badges': {'operation_id':'INTEGER REFERENCES operations(id)',

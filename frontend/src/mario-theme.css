@@ -88,7 +88,6 @@ body { background: radial-gradient(circle at 20% 12%, #fff9 0, transparent 26%),
 .coupon-caption { display: block; margin-top: 9px; color: #5b6888; font-size: 11px; line-height: 1.6; }
 .coupon-policy p { font-size: 13px; line-height: 1.8; color: #5b7183; margin-bottom: 0; }
 .badge-emblem { position: relative; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; border-radius: 8px; padding: 3px; background: color-mix(in srgb, var(--emblem-color) 18%, white); border-bottom: 3px solid var(--emblem-color); }
-.emblem-mark { margin-left: -8px; align-self: flex-start; --pixel-accent: var(--emblem-color); }
 .settlement-card { border-top: 1px solid #dbe8ef; padding: 12px 0 22px; }
 .settlement-card > .redemption-row { border: 0; }
 .settlement-card p { line-height: 1.7; font-size: 13px; }

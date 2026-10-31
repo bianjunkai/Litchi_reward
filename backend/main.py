@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
 from database import init_db, pin_hash, transaction, utc_now
+from product_images import MAX_IMAGE_TEXT, validate_image
 from reward_rules import (BADGE_CODES, BADGE_COLORS, BADGES_PER_COUPON, COUPON_VALUE_FEN,
                           MAX_COUPONS_PER_USE, RULE_VERSION, STAR_CODES, STARS_PER_LIFE_BADGE)
 
@@ -28,8 +29,20 @@ class ChildInput(BaseModel):
     child_id: int = Field(default=1, ge=1)
 
 
+class ProductQuote(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(max_length=500)
+    icon: str = Field(max_length=20)
+    price: int = Field(ge=1, le=MAX_COUPONS_PER_USE, strict=True)
+    cash_price_fen: int | None = Field(ge=0, le=100_000_000, strict=True)
+    image_data: str = Field(default='', max_length=MAX_IMAGE_TEXT)
+
+    _image = field_validator('image_data')(validate_image)
+
+
 class RedemptionRequest(ChildInput):
     product_id: int = Field(ge=1)
+    expected_product: ProductQuote | None = None
 
 
 class ParentLogin(BaseModel):
@@ -44,9 +57,24 @@ class ProductInput(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     description: str = Field(default='', max_length=500)
     icon: str = Field(default='🎁', max_length=20)
-    price: int = Field(ge=1, le=MAX_COUPONS_PER_USE)
+    price: int = Field(ge=1, le=MAX_COUPONS_PER_USE, strict=True)
     cash_price_fen: int | None = Field(default=None, ge=0, le=100_000_000, strict=True)
     active: bool = True
+    image_data: str = Field(default='', max_length=MAX_IMAGE_TEXT)
+
+    _image = field_validator('image_data')(validate_image)
+
+    @field_validator('name')
+    @classmethod
+    def meaningful_name(cls, value):
+        value = value.strip()
+        if not value:
+            raise ValueError('请填写奖励名称')
+        return value
+
+
+class AvailabilityInput(BaseModel):
+    active: bool = Field(strict=True)
 
 
 class TaskInput(BaseModel):
@@ -95,6 +123,17 @@ class ConversionInput(ChildInput):
         return value
 
 
+class ClaimInput(BaseModel):
+    color: str | None = None
+
+    @field_validator('color')
+    @classmethod
+    def valid_color(cls, value):
+        if value is not None and value not in BADGE_COLORS:
+            raise ValueError('徽章颜色仅支持绿、橙、红、金、银')
+        return value
+
+
 class SettlementInput(BaseModel):
     actual_amount_fen: int = Field(ge=0, le=100_000_000, strict=True)
     coupon_count: int | None = Field(default=None, ge=1, le=MAX_COUPONS_PER_USE, strict=True)
@@ -104,8 +143,47 @@ class SettlementInput(BaseModel):
 
 class AdjustmentInput(ChildInput):
     asset_code: str
-    delta: int = Field(ge=-999, le=999)
+    delta: int = Field(ge=-999, le=999, strict=True)
     reason: str = Field(min_length=1, max_length=160)
+    expected_balance: int | None = Field(default=None, ge=0, strict=True)
+
+    @field_validator('reason')
+    @classmethod
+    def meaningful_reason(cls, value):
+        value = value.strip()
+        if not value:
+            raise ValueError('请填写调整原因')
+        return value
+
+    @field_validator('delta')
+    @classmethod
+    def nonzero(cls, value):
+        if not value:
+            raise ValueError('调整数量不能为 0')
+        return value
+
+
+class BadgeAdjustmentInput(ChildInput):
+    badge_id: int = Field(ge=1)
+    color: str
+    delta: int = Field(ge=-999, le=999, strict=True)
+    reason: str = Field(min_length=1, max_length=160)
+    expected_count: int = Field(ge=0, strict=True)
+
+    @field_validator('color')
+    @classmethod
+    def valid_color(cls, value):
+        if value not in BADGE_COLORS:
+            raise ValueError('徽章颜色仅支持绿、橙、红、金、银')
+        return value
+
+    @field_validator('reason')
+    @classmethod
+    def meaningful_reason(cls, value):
+        value = value.strip()
+        if not value:
+            raise ValueError('请填写调整原因')
+        return value
 
     @field_validator('delta')
     @classmethod
@@ -164,8 +242,30 @@ def change_asset(db, child_id, asset_id, delta, reason, op_id):
                (child_id,asset_id,delta,reason,'operation',op_id,utc_now(),op_id))
 
 
+def convert_badges_to_coupon(db, child_id, badge_ids=None):
+    params = [child_id]
+    selected = ''
+    if badge_ids is not None:
+        if len(badge_ids) != BADGES_PER_COUPON or len(set(badge_ids)) != BADGES_PER_COUPON:
+            raise HTTPException(409,'每次需要选择 5 枚不同的可用徽章')
+        selected = ' AND cb.id IN (' + ','.join('?' for _ in badge_ids) + ')'
+        params.extend(badge_ids)
+    owned = db.execute('''SELECT cb.id FROM child_badges cb JOIN badges b ON b.id=cb.badge_id
+        WHERE cb.child_id=? AND cb.reversed_at IS NULL AND cb.spent_operation_id IS NULL
+        AND b.active=1 AND b.code IN ('sports','life','fire','royal')''' + selected + ' ORDER BY cb.id LIMIT ?',
+        [*params,BADGES_PER_COUPON]).fetchall()
+    if len(owned) != BADGES_PER_COUPON:
+        raise HTTPException(409,'选中的徽章已使用、已撤销或已停用，请核对后重新申请')
+    op = operation(db,child_id,'badges_to_coupon',f'{BADGES_PER_COUPON} 枚徽章兑换 1 张券')
+    db.executemany('UPDATE child_badges SET spent_operation_id=? WHERE id=?',[(op,row['id']) for row in owned])
+    coupon = db.execute("SELECT id FROM asset_types WHERE code='coupon'").fetchone()[0]
+    change_asset(db,child_id,coupon,1,'徽章兑换券',op)
+    audit(db,'badges_to_coupon',f'operation:{op}')
+    return {'success':True,'operation_id':op,'badges_consumed':BADGES_PER_COUPON,'coupon_value_fen':COUPON_VALUE_FEN}
+
+
 def badge_summary(db, child_id):
-    return [dict(r) for r in db.execute('''SELECT b.*,
+    badges = [dict(r) for r in db.execute('''SELECT b.*,
         COUNT(CASE WHEN cb.reversed_at IS NULL THEN cb.id END) AS earned_count,
         COUNT(CASE WHEN cb.reversed_at IS NULL AND cb.spent_operation_id IS NULL THEN cb.id END) AS unspent_count,
         COUNT(CASE WHEN cb.reversed_at IS NULL AND cb.spent_operation_id IS NULL AND b.active=1
@@ -173,6 +273,17 @@ def badge_summary(db, child_id):
         MAX(CASE WHEN cb.reversed_at IS NULL THEN cb.earned_at END) AS latest_earned_at
         FROM badges b LEFT JOIN child_badges cb ON cb.badge_id=b.id AND cb.child_id=?
         GROUP BY b.id ORDER BY b.id''',(child_id,))]
+    colors = db.execute('''SELECT badge_id,color,COUNT(*) AS count,
+        SUM(CASE WHEN spent_operation_id IS NULL THEN 1 ELSE 0 END) AS available_count
+        FROM child_badges WHERE child_id=? AND reversed_at IS NULL GROUP BY badge_id,color ORDER BY badge_id,color''',
+        (child_id,)).fetchall()
+    by_badge = {}
+    for row in colors:
+        by_badge.setdefault(row['badge_id'],[]).append({'color':row['color'],'count':row['count'],
+            'available_count':row['available_count']})
+    for badge in badges:
+        badge['colors'] = by_badge.get(badge['id'],[])
+    return badges
 
 
 def star_claimed(db, child_id, day, asset_id):
@@ -300,7 +411,7 @@ def create_app(db_path=None, parent_pin=None):
         return result
 
     @app.post('/api/tasks/{task_id}/claim')
-    def claim_task(task_id: int, child_id: int=1, token=Depends(parent), db=Depends(get_db)):
+    def claim_task(task_id: int, payload: ClaimInput | None=None, child_id: int=1, token=Depends(parent), db=Depends(get_db)):
         child_exists(db,child_id)
         task = db.execute('SELECT * FROM tasks WHERE id=? AND active=1',(task_id,)).fetchone()
         if not task:
@@ -330,7 +441,7 @@ def create_app(db_path=None, parent_pin=None):
             db.execute('INSERT INTO task_claims(task_id,child_id,claim_date,created_at,operation_id) VALUES (?,?,?,?,?)',(task_id,child_id,day,utc_now(),op))
         if task['badge_id']:
             for _ in range(task['amount']):
-                db.execute('INSERT INTO child_badges(child_id,badge_id,reason,earned_at,operation_id,color) VALUES (?,?,?,?,?,?)',(child_id,badge['id'],task['name'],utc_now(),op,task['badge_color'] or badge['color']))
+                db.execute('INSERT INTO child_badges(child_id,badge_id,reason,earned_at,operation_id,color) VALUES (?,?,?,?,?,?)',(child_id,badge['id'],task['name'],utc_now(),op,(payload.color if payload else None) or task['badge_color'] or badge['color']))
         else:
             change_asset(db,child_id,task['asset_type_id'],1,task['name'],op)
         audit(db,'task_claimed',f'operation:{op}')
@@ -376,19 +487,7 @@ def create_app(db_path=None, parent_pin=None):
     @app.post('/api/parent/conversions/coupon')
     def badges_to_coupon(payload: ChildInput, token=Depends(parent), db=Depends(get_db)):
         child_exists(db,payload.child_id)
-        count = BADGES_PER_COUPON
-        owned = db.execute('''SELECT cb.id FROM child_badges cb JOIN badges b ON b.id=cb.badge_id
-            WHERE cb.child_id=? AND cb.reversed_at IS NULL AND cb.spent_operation_id IS NULL
-            AND b.active=1 AND b.code IN ('sports','life','fire','royal') ORDER BY cb.id LIMIT ?''',(payload.child_id,count)).fetchall()
-        if len(owned)<count:
-            raise HTTPException(409,'可用徽章不足')
-        op = operation(db,payload.child_id,'badges_to_coupon',f'{count} 枚徽章兑换 1 张券')
-        for badge in owned:
-            db.execute('UPDATE child_badges SET spent_operation_id=? WHERE id=?',(op,badge['id']))
-        coupon = db.execute("SELECT id FROM asset_types WHERE code='coupon'").fetchone()[0]
-        change_asset(db,payload.child_id,coupon,1,'徽章兑换券',op)
-        audit(db,'badges_to_coupon',f'operation:{op}')
-        return {'success':True,'operation_id':op,'badges_consumed':count,'coupon_value_fen':COUPON_VALUE_FEN}
+        return convert_badges_to_coupon(db,payload.child_id)
 
     @app.get('/api/shop')
     def shop(db=Depends(get_db)):
@@ -397,22 +496,26 @@ def create_app(db_path=None, parent_pin=None):
     @app.post('/api/redemptions')
     def request_redemption(payload: RedemptionRequest, db=Depends(get_db)):
         child_exists(db,payload.child_id)
+        existing = db.execute("SELECT id FROM redemptions WHERE child_id=? AND product_id=? AND status='pending'",(payload.child_id,payload.product_id)).fetchone()
+        if existing:
+            return {'success':True,'id':existing['id'],'message':'这个礼物已经在等待家长确认啦'}
         product = db.execute('SELECT * FROM products WHERE id=? AND active=1',(payload.product_id,)).fetchone()
         if not product:
             raise HTTPException(404,'商品不存在或已下架')
         if not 1<=product['price']<=MAX_COUPONS_PER_USE:
             raise HTTPException(422,'单次最多使用 5 张兑换券')
-        existing = db.execute("SELECT id FROM redemptions WHERE child_id=? AND product_id=? AND status='pending'",(payload.child_id,payload.product_id)).fetchone()
-        if existing:
-            return {'success':True,'id':existing['id'],'message':'这个礼物已经在等待家长确认啦'}
+        if payload.expected_product and any(product[key] != value for key,value in payload.expected_product.model_dump(exclude_unset=True).items()):
+            raise HTTPException(409,'礼物信息已更新，请刷新礼物架后重新确认申请')
         item_id = db.execute('''INSERT INTO redemptions(child_id,product_id,requested_at,product_name,price,icon,coupon_value_fen,quoted_amount_fen,rule_version)
             VALUES (?,?,?,?,?,?,?,?,?)''',(payload.child_id,product['id'],utc_now(),product['name'],product['price'],product['icon'],COUPON_VALUE_FEN,product['cash_price_fen'],RULE_VERSION)).lastrowid
         return {'success':True,'id':item_id,'message':'兑换申请已送到家长控制台'}
 
     @app.get('/api/parent/summary')
-    def summary(token=Depends(parent), db=Depends(get_db)):
-        return {'pending_redemptions':db.execute("SELECT COUNT(*) FROM redemptions WHERE status='pending'").fetchone()[0],
-                'today_claims':db.execute('SELECT COUNT(*) FROM task_claims WHERE claim_date=? AND reversed_at IS NULL',(today(rules(db)['family_timezone']),)).fetchone()[0]}
+    def summary(child_id: int=1, token=Depends(parent), db=Depends(get_db)):
+        child_exists(db,child_id)
+        return {'pending_redemptions':db.execute("SELECT COUNT(*) FROM redemptions WHERE child_id=? AND status='pending'",(child_id,)).fetchone()[0],
+                'pending_coupon_requests':db.execute("SELECT COUNT(*) FROM coupon_requests WHERE child_id=? AND status='pending'",(child_id,)).fetchone()[0],
+                'today_claims':db.execute('SELECT COUNT(*) FROM task_claims WHERE child_id=? AND claim_date=? AND reversed_at IS NULL',(child_id,today(rules(db)['family_timezone']))).fetchone()[0]}
 
     @app.get('/api/parent/redemptions')
     def redemptions(token=Depends(parent), db=Depends(get_db)):
@@ -460,9 +563,39 @@ def create_app(db_path=None, parent_pin=None):
             raise HTTPException(404,'找不到可用资产')
         if payload.asset_code=='gold_star' and payload.delta>0:
             raise HTTPException(422,'金色代币尚未设置获得条件，暂不发放')
+        current = db.execute('SELECT balance FROM child_assets WHERE child_id=? AND asset_type_id=?', (payload.child_id,asset['id'])).fetchone()
+        if payload.expected_balance is not None and (not current or current['balance'] != payload.expected_balance):
+            raise HTTPException(409,'余额已变化，请刷新并重新确认调整')
         op = operation(db,payload.child_id,'manual',payload.reason)
         change_asset(db,payload.child_id,asset['id'],payload.delta,payload.reason,op)
         audit(db,'asset_adjusted',f'operation:{op}')
+        return {'success':True,'operation_id':op}
+
+    @app.post('/api/parent/badge-adjust')
+    def adjust_badges(payload: BadgeAdjustmentInput, token=Depends(parent), db=Depends(get_db)):
+        child_exists(db,payload.child_id)
+        badge = db.execute('SELECT id,name FROM badges WHERE id=?',(payload.badge_id,)).fetchone()
+        if not badge:
+            raise HTTPException(404,'找不到徽章类型')
+        current = db.execute('''SELECT COUNT(*) FROM child_badges WHERE child_id=? AND badge_id=? AND color=?
+            AND reversed_at IS NULL AND spent_operation_id IS NULL''',
+            (payload.child_id,payload.badge_id,payload.color)).fetchone()[0]
+        if current != payload.expected_count:
+            raise HTTPException(409,'该颜色徽章数量已变化，请刷新后重新核对')
+        op = operation(db,payload.child_id,'manual',payload.reason)
+        if payload.delta > 0:
+            db.executemany('''INSERT INTO child_badges(child_id,badge_id,reason,earned_at,operation_id,color)
+                VALUES (?,?,?,?,?,?)''',[(payload.child_id,payload.badge_id,payload.reason,utc_now(),op,payload.color)
+                for _ in range(payload.delta)])
+        else:
+            count = -payload.delta
+            ids = [row['id'] for row in db.execute('''SELECT id FROM child_badges WHERE child_id=? AND badge_id=? AND color=?
+                AND reversed_at IS NULL AND spent_operation_id IS NULL ORDER BY id LIMIT ?''',
+                (payload.child_id,payload.badge_id,payload.color,count)).fetchall()]
+            if len(ids) < count:
+                raise HTTPException(409,'该颜色可用徽章不足，调整未执行')
+            db.executemany('UPDATE child_badges SET spent_operation_id=? WHERE id=?',[(op,badge_id) for badge_id in ids])
+        audit(db,'badge_adjusted',f'operation:{op}')
         return {'success':True,'operation_id':op}
 
     @app.get('/api/parent/operations')
@@ -477,13 +610,10 @@ def create_app(db_path=None, parent_pin=None):
 
     @app.post('/api/parent/operations/{op_id}/reverse')
     def reverse(op_id: int, token=Depends(parent), db=Depends(get_db)):
-        source = db.execute('SELECT * FROM operations WHERE id=?',(op_id,)).fetchone()
-        if not source:
-            raise HTTPException(404,'找不到原操作')
-        if source['reversed_at'] or source['reversal_of']:
-            raise HTTPException(409,'该操作已撤销或本身为撤销记录')
-        if db.execute('SELECT 1 FROM child_badges WHERE operation_id=? AND spent_operation_id IS NOT NULL AND reversed_at IS NULL',(op_id,)).fetchone():
-            raise HTTPException(409,'徽章已兑换，请先撤销后续兑换')
+        preview = reversal_preview(db,op_id)
+        if not preview['can_reverse']:
+            raise HTTPException(409,'；'.join(preview['blockers']))
+        source = preview['operation']
         op = operation(db,source['child_id'],'reversal','撤销：'+source['reason'],op_id)
         for entry in db.execute('SELECT * FROM ledger WHERE operation_id=? ORDER BY id',(op_id,)).fetchall():
             change_asset(db,source['child_id'],entry['asset_type_id'],-entry['delta'],'撤销：'+source['reason'],op)
@@ -492,6 +622,7 @@ def create_app(db_path=None, parent_pin=None):
         db.execute('UPDATE child_badges SET spent_operation_id=NULL WHERE spent_operation_id=?',(op_id,))
         db.execute('UPDATE task_claims SET reversed_at=? WHERE operation_id=?',(stamp,op_id))
         db.execute("UPDATE redemptions SET status='reversed' WHERE operation_id=?",(op_id,))
+        db.execute("UPDATE coupon_requests SET status='reversed' WHERE operation_id=?",(op_id,))
         db.execute('UPDATE operations SET reversed_at=? WHERE id=?',(stamp,op_id))
         audit(db,'operation_reversed',f'operation:{op_id},reversal:{op}')
         return {'success':True,'operation_id':op}
@@ -513,13 +644,30 @@ def create_app(db_path=None, parent_pin=None):
         return [dict(r) for r in db.execute('SELECT * FROM products ORDER BY id')]
 
     def save_product(payload, db, item_id=None):
-        values = (payload.name,payload.description,payload.icon,payload.price,int(payload.active),payload.cash_price_fen)
+        image = payload.image_data
+        if item_id is not None and 'image_data' not in payload.model_fields_set:
+            old = db.execute('SELECT image_data FROM products WHERE id=?',(item_id,)).fetchone()
+            if not old:
+                raise HTTPException(404,'商品不存在')
+            image = old['image_data']
+        values = (payload.name,payload.description,payload.icon,payload.price,int(payload.active),payload.cash_price_fen,image)
         if item_id is None:
-            item_id = db.execute('INSERT INTO products(name,description,icon,price,active,cash_price_fen) VALUES (?,?,?,?,?,?)',values).lastrowid
-        elif not db.execute('UPDATE products SET name=?,description=?,icon=?,price=?,active=?,cash_price_fen=? WHERE id=?',values+(item_id,)).rowcount:
+            item_id = db.execute('INSERT INTO products(name,description,icon,price,active,cash_price_fen,image_data) VALUES (?,?,?,?,?,?,?)',values).lastrowid
+        elif not db.execute('UPDATE products SET name=?,description=?,icon=?,price=?,active=?,cash_price_fen=?,image_data=? WHERE id=?',values+(item_id,)).rowcount:
             raise HTTPException(404,'商品不存在')
         audit(db,'product_saved',f'product:{item_id}')
         return {'success':True,'id':item_id}
+
+    @app.patch('/api/parent/products/{item_id}/availability')
+    def product_availability(item_id: int, payload: AvailabilityInput, token=Depends(parent), db=Depends(get_db)):
+        product = db.execute('SELECT price FROM products WHERE id=?',(item_id,)).fetchone()
+        if not product:
+            raise HTTPException(404,'商品不存在')
+        if payload.active and not 1 <= product['price'] <= MAX_COUPONS_PER_USE:
+            raise HTTPException(422,'请先将所需兑换券改为 1–5 张再上架')
+        db.execute('UPDATE products SET active=? WHERE id=?',(int(payload.active),item_id))
+        audit(db,'product_published' if payload.active else 'product_unlisted',f'product:{item_id}')
+        return {'success':True,'id':item_id,'active':payload.active}
 
     @app.post('/api/parent/products')
     def add_product(payload: ProductInput, token=Depends(parent), db=Depends(get_db)):
@@ -593,6 +741,14 @@ def create_app(db_path=None, parent_pin=None):
         return save_badge(payload,db,item_id)
 
     from backups import register_backups
+    from backpack import register_backpack
+    from shop import register_shop
+    from parent_views import register_parent_views, reversal_preview
+    from coupon_requests import register_coupon_requests
+    register_backpack(app,get_db)
+    register_shop(app,get_db)
+    register_parent_views(app,get_db,parent)
+    register_coupon_requests(app,get_db,parent,child_exists,convert_badges_to_coupon,audit)
     register_backups(app,get_db,parent,path,RulesInput,rules,audit)
     return app
 
