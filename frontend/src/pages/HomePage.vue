@@ -38,10 +38,10 @@ const available = computed(() => props.dashboard.badge_progress.available)
 
     <section class="home-module next-goal" aria-labelledby="goal-heading">
       <div class="module-heading"><h2 id="goal-heading">🎁 我的下一个目标</h2><PixelArt kind="ticket" :size="28" /></div>
-      <h3>{{ available >= 5 ? '可以申请兑换券啦！' : '攒出下一张兑换券' }}</h3>
+      <h3>{{ available >= 5 ? '集齐 5 枚徽章，可以换券啦！' : `还差 ${5 - available} 枚可用徽章` }}</h3>
       <div class="goal-meter"><progress :value="Math.min(available, 5)" max="5" aria-label="下一张兑换券所需的可用徽章" /><strong>{{ Math.min(available, 5) }} / 5 枚徽章</strong></div>
-      <p>先选 5 枚徽章申请换券，家长审批后获得兑换券，再用券兑换礼物。</p>
-      <div class="goal-actions"><button class="text-button" @click="emit('navigate', 'backpack', 'badges')">看看我的徽章 →</button><button class="secondary-button" @click="emit('navigate', 'backpack', 'coupons')">申请兑换券 →</button></div>
+      <p>{{ available >= 5 ? '选择任意 5 枚可用徽章申请兑换券，家长审批后再用券兑换礼物。' : '继续完成冒险任务，攒满 5 枚可用徽章后就能申请兑换券。' }}</p>
+      <div class="goal-actions"><button v-if="available >= 5" class="secondary-button" @click="emit('navigate', 'backpack', 'coupons')">申请兑换券 →</button><button v-else class="secondary-button" @click="emit('navigate', 'backpack', 'badges')">看看我的徽章 →</button></div>
     </section>
   </section>
 </template>
