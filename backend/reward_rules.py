@@ -3,10 +3,29 @@ STARS_PER_LIFE_BADGE = 5
 BADGES_PER_COUPON = 5
 COUPON_VALUE_FEN = 3990
 MAX_COUPONS_PER_USE = 5
-RULE_VERSION = 'family-v1'
+RULE_VERSION = 'family-v2'
 STAR_CODES = ('study_star','tidy_star','meal_star')
+LIFE_BADGE_STAR_CODES = ('tidy_star','meal_star')
+SUNFLOWER_BADGE_STAR_CODES = ('study_star',)
 BADGE_CODES = ('sports','life','fire','royal')
 BADGE_COLORS = ('#4eb478','#f0aa37','#e55353','#d4af37','#aab5c4')
+SUNFLOWER_MIGRATION_KEY = 'sunflower_badge_v1'
+
+
+def migrate_sunflower_badge(tables):
+    """Enable the third badge as a star-conversion reward without rewriting history."""
+    settings = tables.get('settings', [])
+    if any(row['key'] == SUNFLOWER_MIGRATION_KEY for row in settings):
+        return False
+    fire_badges = [badge for badge in tables.get('badges', []) if badge['code'] == 'fire']
+    fire_ids = {badge['id'] for badge in fire_badges}
+    for badge in fire_badges:
+        badge.update(name='太阳花徽章', description='认真学习、专心阅读，集齐 5 颗橙色学习星星兑换。', icon='🌻', active=1)
+    for task in tables.get('tasks', []):
+        if task.get('badge_id') in fire_ids:
+            task['active'] = 0
+    settings.append({'key': SUNFLOWER_MIGRATION_KEY, 'value': 'done'})
+    return True
 
 
 def normalize_legacy_data(tables):
@@ -19,8 +38,8 @@ def normalize_legacy_data(tables):
             badge['active'] = 0
         if badge['color'] not in BADGE_COLORS:
             badge['color'] = '#f0aa37'
-        if badge['code']=='fire' and badge['name']=='火花徽章':
-            badge['name'] = '预留徽章 A'
+        if badge['code']=='fire':
+            badge.update(name='太阳花徽章', description='认真学习、专心阅读，集齐 5 颗橙色学习星星兑换。', icon='🌻', active=1)
         if badge['code']=='royal' and badge['name']=='王冠徽章':
             badge['name'] = '预留徽章 B'
     for asset in assets.values():
@@ -30,7 +49,7 @@ def normalize_legacy_data(tables):
         badge = badges.get(task.get('badge_id'))
         asset = assets.get(task['asset_type_id'])
         if task.get('badge_id'):
-            if not badge or badge['code'] not in ('sports','fire','royal'):
+            if not badge or badge['code'] not in ('sports','royal'):
                 task['active'] = 0
         else:
             task['amount'] = 1

@@ -30,6 +30,8 @@ export const isDashboard = body => Boolean(
   && Array.isArray(body.badges) && body.badges.every(b => Number.isInteger(b.earned_count) && Number.isInteger(b.available_count))
   && Number.isInteger(body.progress?.target) && body.progress.target > 0 && body.progress.target <= 100
   && Number.isFinite(body.progress?.current) && Number.isFinite(body.progress?.total_stars)
+  && Number.isInteger(body.star_total) && Number.isFinite(body.study_progress?.current)
+  && Number.isFinite(body.study_progress?.total_stars) && Number.isInteger(body.study_progress?.target)
   && Number.isInteger(body.badge_progress?.available) && body.badge_progress.target === 5
   && Number.isInteger(body.coupons?.balance) && body.coupons.unit_value_fen === 3990
   && Number.isInteger(body.coupons?.total_value_fen)

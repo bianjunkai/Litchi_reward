@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
-export const operationNames = { task:'获得奖励', manual:'数据纠错', stars_to_badge:'代币换生活徽章', badges_to_coupon:'徽章换券', redemption:'使用兑换券', reversal:'撤销记录' }
+export const operationNames = { task:'获得奖励', manual:'数据纠错', stars_to_badge:'星星兑换徽章', badges_to_coupon:'徽章换券', redemption:'使用兑换券', reversal:'撤销记录' }
 export const signed = number => `${number > 0 ? '+' : ''}${number}`
 export function adjustmentPreview(assets, draft) {
   const asset = assets.find(item => item.code === draft.asset_code && item.active)

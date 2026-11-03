@@ -59,9 +59,10 @@ body { background: radial-gradient(circle at 20% 12%, #fff9 0, transparent 26%),
 .reward-route strong { font-size: 14px; color: #674c19; }
 .reward-route div > span { font-size: 12px; color: #806b45; }
 .route-arrow { color: #c4902a; font-weight: 900; }
-.reward-sources { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.reward-sources { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .reward-sources > div { display: grid; justify-items: center; gap: 8px; text-align: center; background: #fff4d7; border: 1px solid #ead290; border-radius: 10px; padding: 14px 10px; }
-.reward-sources > div:last-child { background: #edf8e9; border-color: #afd19e; }
+.reward-sources > div:nth-child(2) { background: #edf8e9; border-color: #afd19e; }
+.reward-sources > div:nth-child(3) { background: #f3fbea; border-color: #c3d9ab; }
 .reward-sources strong { font-size: 14px; color: #4f6243; }
 .reward-sources span { font-size: 12px; line-height: 1.7; color: #657256; }
 .sports-challenge { padding: 22px; margin: 22px 0; background: #f3fbea; border: 2px solid #91bc70; border-radius: 13px; box-shadow: 0 4px 0 #d0e5ba; }

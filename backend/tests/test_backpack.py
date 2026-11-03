@@ -52,21 +52,21 @@ def test_invalid_badge_filters_are_rejected(family, query):
     assert client.get('/api/backpack/badges', params=query).status_code == 422
 
 
-def test_mixed_star_spending_retains_color_balances_and_reasons(family):
+def test_life_badge_spending_uses_only_green_red_stars_and_retains_color_balances(family):
     client, headers, path = family
     for task_id in (1, 2, 3):
         assert post(client, headers, f'/api/tasks/{task_id}/claim').status_code == 200
-    fund(client, headers, 'tidy_star', 1)
+    fund(client, headers, 'tidy_star', 2)
     fund(client, headers, 'meal_star', 1)
     assert post(client, headers, '/api/parent/conversions/stars', {'badge_id': 2}).status_code == 200
     entries = history(client)
-    assert entries['total'] == 8
+    assert entries['total'] == 7
     spent = history(client, direction='out')['items']
-    assert {item['asset_code']: item['delta'] for item in spent} == {'study_star': -1, 'tidy_star': -2, 'meal_star': -2}
+    assert {item['asset_code']: item['delta'] for item in spent} == {'tidy_star': -3, 'meal_star': -2}
     assert all(item['balance_after'] == 0 and item['kind'] == 'stars_to_badge' for item in spent)
     assert {item['kind'] for item in entries['items']} == {'task', 'manual', 'stars_to_badge'}
     green = history(client, asset_code='tidy_star', direction='in')['items']
-    assert [item['balance_after'] for item in green] == [2, 1]
+    assert [item['balance_after'] for item in green] == [3, 1]
     assert all(item['reason'] and item['status'] == 'recorded' and item['settlement'] is None for item in green)
     assert_balanced(path)
 
@@ -178,10 +178,10 @@ def test_badge_statuses_preserve_collection_and_follow_reversals(family):
 
 def test_disabled_badges_keep_their_original_color_and_reason(family):
     client, headers, _ = family
-    set_badge_active(client, headers, 3, True)
-    grant_badges(client, headers, 3, 2, '#d4af37')
-    set_badge_active(client, headers, 3, False)
-    page = badges(client, badge_id=3, status='disabled', color='#d4af37')
+    set_badge_active(client, headers, 4, True)
+    grant_badges(client, headers, 4, 2, '#d4af37')
+    set_badge_active(client, headers, 4, False)
+    page = badges(client, badge_id=4, status='disabled', color='#d4af37')
     assert page['total'] == 2
     assert all(item['color'] == '#d4af37' and item['reason'] for item in page['items'])
     assert badges(client, status='available')['total'] == 0

@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from database import SCHEMA, utc_now
 from product_images import validate_image
 from reward_rules import (BADGE_CODES, BADGE_COLORS, COUPON_VALUE_FEN, MAX_COUPONS_PER_USE,
-                          RULE_VERSION, STAR_CODES, normalize_legacy_data)
+                          RULE_VERSION, STAR_CODES, migrate_sunflower_badge, normalize_legacy_data)
 
 TABLES = ('children','asset_types','badges','products','tasks','operations','child_assets',
           'task_claims','child_badges','coupon_requests','coupon_request_badges','redemptions','ledger','audit_logs')
@@ -62,6 +62,7 @@ def register_backups(app, get_db, parent, path, rules_model, read_rules, audit):
                             row.setdefault(key,value)
                 normalize_legacy_data(payload.tables)
                 payload.rules.update(badge_ratio='5',badges_per_coupon='5',coupon_value_fen='3990',max_coupons_per_redemption='5')
+            migrate_sunflower_badge(payload.tables)
             settings = rules_model(**payload.rules)
             if sum(len(rows) for rows in payload.tables.values())>100_000:
                 raise ValueError('备份数据量过大')
@@ -120,7 +121,7 @@ def register_backups(app, get_db, parent, path, rules_model, read_rules, audit):
                 for task in sandbox.execute('''SELECT t.amount,t.badge_id,t.badge_color,a.code,b.code
                     FROM tasks t JOIN asset_types a ON a.id=t.asset_type_id LEFT JOIN badges b ON b.id=t.badge_id WHERE t.active=1'''):
                     amount,badge_id,color,asset_code,badge_code = task
-                    if (not badge_id and (amount!=1 or asset_code not in STAR_CODES)) or (badge_id and badge_code not in ('sports','fire','royal')):
+                    if (not badge_id and (amount!=1 or asset_code not in STAR_CODES)) or (badge_id and badge_code not in ('sports','royal')):
                         raise ValueError('任务奖励不符合日常代币／徽章规则')
                     if color is not None and color not in BADGE_COLORS:
                         raise ValueError('徽章颜色版本不合法')

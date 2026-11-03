@@ -45,6 +45,12 @@ const patterns = {
     '.......gg.......','..gg...gg...gg..','..gggg.gg.gggg..','...gggggggggg...',
     '....gggggggg....','.......gg.......','.......gg.......','......gggg......',
   ],
+  sunflower: [
+    '......ssss......','....ssssssss....','...ssssssssss...','..ssssssssssss..',
+    '.ssssssssssssss.','.sssssoooosssss.','sssssoobboosssss','sssssoobboosssss',
+    '.sssssoooosssss.','..ssssssssssss..','...ssssssssss...','......gggg......',
+    '......gggg......','.....gggggg.....','.......gg.......','.......gg.......',
+  ],
   crown: [
     '................','.ss....ss....ss.','.ss....ss....ss.','.sss..ssss..sss.',
     '.sss..ssss..sss.','.ssssssssssssss.','..ssssssssssss..','..ssrssyyssrss..',

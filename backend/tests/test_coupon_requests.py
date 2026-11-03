@@ -15,7 +15,7 @@ def request(client, selections=None):
 
 def test_child_request_does_not_spend_and_parent_approves_exact_sports_badges(family):
     client,headers,path = family
-    fund(client,headers,'study_star',5)
+    fund(client,headers,'tidy_star',5)
     post(client,headers,'/api/parent/conversions/stars',{'badge_id':2})  # Older life badge must not be consumed instead.
     grant_badges(client,headers,1,5,'#4eb478')
     result = request(client)

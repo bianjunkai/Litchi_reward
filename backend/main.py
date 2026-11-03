@@ -15,7 +15,8 @@ from pydantic import BaseModel, Field, field_validator
 from database import init_db, pin_hash, transaction, utc_now
 from product_images import MAX_IMAGE_TEXT, validate_image
 from reward_rules import (BADGE_CODES, BADGE_COLORS, BADGES_PER_COUPON, COUPON_VALUE_FEN,
-                          MAX_COUPONS_PER_USE, RULE_VERSION, STAR_CODES, STARS_PER_LIFE_BADGE)
+                          LIFE_BADGE_STAR_CODES, MAX_COUPONS_PER_USE, RULE_VERSION, STAR_CODES,
+                          STARS_PER_LIFE_BADGE, SUNFLOWER_BADGE_STAR_CODES)
 
 DEFAULT_DB_PATH = str(Path(__file__).parent.parent / 'data' / 'rewards.db')
 RULE_KEYS = ('badge_ratio','badges_per_coupon','family_timezone')
@@ -377,16 +378,24 @@ def create_app(db_path=None, parent_pin=None):
         child = child_exists(db,child_id)
         assets = [dict(r) for r in db.execute('''SELECT a.code,a.name,a.icon,a.color,a.active,ca.balance FROM child_assets ca
             JOIN asset_types a ON a.id=ca.asset_type_id WHERE ca.child_id=? ORDER BY a.id''',(child_id,))]
-        total = sum(a['balance'] for a in assets if a['active'] and a['code'] in STAR_CODES)
+        star_balances = {a['code']:a['balance'] for a in assets if a['active'] and a['code'] in STAR_CODES}
+        total = sum(star_balances.values())
+        life_total = sum(star_balances.get(code,0) for code in LIFE_BADGE_STAR_CODES)
+        study_total = sum(star_balances.get(code,0) for code in SUNFLOWER_BADGE_STAR_CODES)
         target = rules(db)['badge_ratio']
         life = db.execute("SELECT active FROM badges WHERE code='life'").fetchone()
+        sunflower = db.execute("SELECT active FROM badges WHERE code='fire'").fetchone()
         claims = db.execute('SELECT COUNT(*) FROM task_claims WHERE child_id=? AND reversed_at IS NULL',(child_id,)).fetchone()[0]
         badge_counts = badge_summary(db,child_id)
         available = sum(b['available_count'] for b in badge_counts)
         coupons = next(a['balance'] for a in assets if a['code']=='coupon')
         return {'child':child,'assets':assets,'badges':badge_counts,'rules':rules(db),'family_timezone':rules(db)['family_timezone'],
-                'progress':{'current':min(total,target),'target':target,'total_stars':total,
-                            'enabled':bool(life and life['active']), 'can_redeem':bool(life and life['active'] and total>=target)},
+                'star_total':total,
+                'progress':{'current':min(life_total,target),'target':target,'total_stars':life_total,
+                            'enabled':bool(life and life['active']), 'can_redeem':bool(life and life['active'] and life_total>=target)},
+                'study_progress':{'current':min(study_total,target),'target':target,'total_stars':study_total,
+                                  'enabled':bool(sunflower and sunflower['active']),
+                                  'can_redeem':bool(sunflower and sunflower['active'] and study_total>=target)},
                 'badge_progress':{'current':min(available,BADGES_PER_COUPON),'target':BADGES_PER_COUPON,
                                   'available':available,'can_redeem':available>=BADGES_PER_COUPON},
                 'coupons':{'balance':coupons,'unit_value_fen':COUPON_VALUE_FEN,'total_value_fen':coupons*COUPON_VALUE_FEN,
@@ -402,7 +411,7 @@ def create_app(db_path=None, parent_pin=None):
             FROM tasks t JOIN asset_types a ON a.id=t.asset_type_id LEFT JOIN badges b ON b.id=t.badge_id
             LEFT JOIN task_claims tc ON tc.task_id=t.id AND tc.child_id=? AND tc.claim_date=? AND tc.reversed_at IS NULL
             WHERE t.active=1 AND ((t.badge_id IS NULL AND a.active=1 AND a.code IN ('study_star','tidy_star','meal_star'))
-                OR (b.active=1 AND b.code IN ('sports','fire','royal'))) ORDER BY t.id''',
+                OR (b.active=1 AND b.code IN ('sports','royal'))) ORDER BY t.id''',
             (child_id,day))]
         for task in result:
             if not task['badge_id']:
@@ -420,8 +429,8 @@ def create_app(db_path=None, parent_pin=None):
             badge = db.execute('SELECT * FROM badges WHERE id=? AND active=1',(task['badge_id'],)).fetchone()
             if not badge:
                 raise HTTPException(409,'该徽章已停用')
-            if badge['code'] not in ('sports','fire','royal'):
-                raise HTTPException(409,'生活徽章只能用 5 枚星星代币兑换')
+            if badge['code'] not in ('sports','royal'):
+                raise HTTPException(409,'生活徽章和太阳花学习徽章只能通过星星兑换')
         elif not db.execute('SELECT 1 FROM asset_types WHERE id=? AND active=1',(task['asset_type_id'],)).fetchone():
             raise HTTPException(409,'该资产已停用')
         day = today(rules(db)['family_timezone'])
@@ -463,24 +472,27 @@ def create_app(db_path=None, parent_pin=None):
         badge = db.execute('SELECT * FROM badges WHERE id=? AND active=1',(payload.badge_id,)).fetchone()
         if not badge:
             raise HTTPException(404,'徽章不存在或已停用')
-        if badge['code']!='life':
-            raise HTTPException(422,'星星代币只能兑换生活徽章，其他徽章须完成家长设定的任务')
+        eligible_stars = {'life':LIFE_BADGE_STAR_CODES,'fire':SUNFLOWER_BADGE_STAR_CODES}
+        star_codes = eligible_stars.get(badge['code'])
+        if not star_codes:
+            raise HTTPException(422,'体育徽章及预留徽章不能用星星兑换')
         cost = STARS_PER_LIFE_BADGE
         op = operation(db,payload.child_id,'stars_to_badge',f"兑换{badge['name']}")
         remaining = cost
+        marks = ','.join('?' for _ in star_codes)
         assets = db.execute('''SELECT ca.*,a.code FROM child_assets ca JOIN asset_types a ON a.id=ca.asset_type_id
-            WHERE ca.child_id=? AND a.active=1 ORDER BY a.id''',(payload.child_id,)).fetchall()
+            WHERE ca.child_id=? AND a.active=1 AND a.code IN ('''+marks+''') ORDER BY a.id''',
+            (payload.child_id,*star_codes)).fetchall()
         for asset in assets:
-            if asset['code'] not in STAR_CODES:
-                continue
             amount = min(remaining,asset['balance'])
             if amount:
                 change_asset(db,payload.child_id,asset['asset_type_id'],-amount,f"兑换{badge['name']}",op)
                 remaining -= amount
         if remaining:
-            raise HTTPException(409,'星星不足，尚未达到兑换条件')
+            eligible_name = '橙色学习星星' if badge['code']=='fire' else '绿色和红色星星'
+            raise HTTPException(409,f'{eligible_name}不足，尚未达到兑换条件')
         db.execute('INSERT INTO child_badges(child_id,badge_id,reason,earned_at,operation_id,color) VALUES (?,?,?,?,?,?)',
-                   (payload.child_id,badge['id'],f'{cost} 颗星星兑换',utc_now(),op,payload.color or badge['color']))
+                   (payload.child_id,badge['id'],f'{cost} 颗{"橙色学习星星" if badge["code"]=="fire" else "绿色／红色星星"}兑换',utc_now(),op,payload.color or badge['color']))
         audit(db,'stars_to_badge',f'operation:{op}')
         return {'success':True,'operation_id':op}
 
@@ -584,6 +596,9 @@ def create_app(db_path=None, parent_pin=None):
             raise HTTPException(409,'该颜色徽章数量已变化，请刷新后重新核对')
         op = operation(db,payload.child_id,'manual',payload.reason)
         if payload.delta > 0:
+            badge_code = db.execute('SELECT code FROM badges WHERE id=?',(payload.badge_id,)).fetchone()['code']
+            if badge_code in ('life','fire'):
+                raise HTTPException(422,'生活徽章和太阳花学习徽章必须通过指定星星兑换，不能直接补发')
             db.executemany('''INSERT INTO child_badges(child_id,badge_id,reason,earned_at,operation_id,color)
                 VALUES (?,?,?,?,?,?)''',[(payload.child_id,payload.badge_id,payload.reason,utc_now(),op,payload.color)
                 for _ in range(payload.delta)])
@@ -691,8 +706,8 @@ def create_app(db_path=None, parent_pin=None):
             raise HTTPException(404,'徽章不存在')
         if payload.badge_id:
             badge = db.execute('SELECT code FROM badges WHERE id=?',(payload.badge_id,)).fetchone()
-            if badge['code'] not in ('sports','fire','royal'):
-                raise HTTPException(422,'生活徽章只能由 5 枚星星代币兑换获得')
+            if badge['code'] not in ('sports','royal'):
+                raise HTTPException(422,'生活徽章和太阳花学习徽章只能由指定星星兑换获得')
         values = (payload.name,payload.description,asset['id'],payload.amount,int(payload.active),payload.badge_id,payload.badge_color)
         if item_id is None:
             item_id = db.execute('INSERT INTO tasks(name,description,asset_type_id,amount,active,badge_id,badge_color) VALUES (?,?,?,?,?,?,?)',values).lastrowid

@@ -19,6 +19,7 @@ const badgeCount = computed(() => selectedBadgeColor.value?.available_count ?? 0
 const badgeAfter = computed(() => badgeCount.value + badgeDraft.value.delta)
 const badgeAdjustmentValid = computed(() => !!selectedBadge.value && Number.isInteger(badgeDraft.value.delta)
   && badgeDraft.value.delta !== 0 && Math.abs(badgeDraft.value.delta) <= 999
+  && !(badgeDraft.value.delta > 0 && ['life','fire'].includes(selectedBadge.value.code))
   && badgeAfter.value >= 0 && !!badgeDraft.value.reason.trim() && badgeDraft.value.reason.trim().length <= 160)
 const selection = ref(null), preview = ref(null), previewError = ref(''), previewLoading = ref(false)
 let alive = true, previewVersion = 0
@@ -60,14 +61,14 @@ const lookup = id => { search.value = `#${id}`; appliedSearch.value = `#${id}`; 
 </script>
 <template>
   <details class="panel parent-adjust"><summary>资产补记／纠错</summary>
-    <p class="muted">日常奖励请在工作台发放。这里用于补记或纠正星星、兑换券和徽章；生活徽章仍应通过 5 枚星星兑换。</p>
+    <p class="muted">日常奖励请在工作台发放。这里用于补记或纠正星星、兑换券和徽章；生活徽章与太阳花学习徽章应通过各自指定颜色的 5 颗星星兑换。</p>
     <form class="editor-form" @submit.prevent="showAdjustment"><label>调整资产<select v-model="draft.asset_code" :disabled="blocked"><option v-for="item in dashboard.assets.filter(a => a.active)" :key="item.code" :value="item.code">{{ item.name }} · 当前 {{ item.balance }}</option></select></label>
       <label>变动数量（扣回填负数）<input v-model.number="draft.delta" type="number" min="-999" max="999" step="1" required :disabled="blocked" /></label>
       <label>调整原因<input v-model="draft.reason" required maxlength="160" placeholder="例如：补记昨天的学习奖励" :disabled="blocked" /></label>
       <p v-if="adjustment.asset" aria-live="polite">{{ adjustment.asset.name }}：{{ adjustment.asset.balance }} → {{ adjustment.after }}<span v-if="adjustment.after < 0" class="inline-error">（不能扣成负数）</span></p>
       <button class="primary-button" :disabled="blocked || !adjustment.valid">核对本次调整</button>
     </form>
-    <form class="editor-form badge-adjust-form" @submit.prevent="showBadgeAdjustment"><h3>徽章补记／纠错</h3>
+    <form class="editor-form badge-adjust-form" @submit.prevent="showBadgeAdjustment"><h3>徽章补记／纠错</h3><p class="muted">生活徽章和太阳花徽章必须通过对应星星兑换；这里仅能扣回，不可直接补发。</p>
       <label>徽章类型<select v-model.number="badgeDraft.badge_id" :disabled="blocked"><option v-for="item in dashboard.badges" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
       <label>颜色<select v-model="badgeDraft.color" :disabled="blocked"><option v-for="color in badgeColors" :key="color.value" :value="color.value">{{ color.label }}</option></select></label>
       <label>变动数量（扣回填负数，可扣回 {{ badgeCount }} 枚）<input v-model.number="badgeDraft.delta" type="number" min="-999" max="999" step="1" required :disabled="blocked" /></label>

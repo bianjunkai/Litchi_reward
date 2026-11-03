@@ -5,7 +5,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from reward_rules import RULE_VERSION, normalize_legacy_data
+from reward_rules import RULE_VERSION, SUNFLOWER_MIGRATION_KEY, migrate_sunflower_badge, normalize_legacy_data
 
 
 def utc_now():
@@ -169,6 +169,15 @@ def init_db(path, initial_pin=None):
                 if column not in existing:
                     db.execute(f'ALTER TABLE {table} ADD COLUMN {column} {spec}')
         db.commit()
+        sunflower_safety_path = Path(str(path)+'.pre-sunflower-v1.db')
+        if (db.execute("SELECT 1 FROM badges WHERE code='fire'").fetchone()
+                and not db.execute('SELECT 1 FROM settings WHERE key=?',(SUNFLOWER_MIGRATION_KEY,)).fetchone()
+                and not sunflower_safety_path.exists()):
+            target = sqlite3.connect(str(sunflower_safety_path))
+            try:
+                db.backup(target)
+            finally:
+                target.close()
         db.execute('BEGIN IMMEDIATE')
         if not db.execute('SELECT 1 FROM children').fetchone():
             db.execute("INSERT INTO children(name) VALUES ('小勇士')")
@@ -185,7 +194,7 @@ def init_db(path, initial_pin=None):
             db.executemany('INSERT INTO badges(code,name,description,icon,color,threshold,active) VALUES (?,?,?,?,?,?,?)', [
                 ('sports','体育徽章','坚持运动，身体棒棒！','🍄','#4eb478',5,1),
                 ('life','生活徽章','自己的事情自己做！','⭐','#f0aa37',5,1),
-                ('fire','预留徽章 A','条件由家长定义，启用前不参与兑换','🌸','#e55353',5,0),
+                ('fire','太阳花徽章','认真学习、专心阅读，集齐 5 颗橙色学习星星兑换。','🌻','#f0aa37',5,1),
                 ('royal','预留徽章 B','条件由家长定义，启用前不参与兑换','👑','#d4af37',5,0),
             ])
             db.execute("INSERT INTO tasks(name,description,asset_type_id,badge_id) VALUES ('运动打卡','完成家长约定的运动目标',(SELECT id FROM asset_types WHERE code='study_star'),(SELECT id FROM badges WHERE code='sports'))")
@@ -217,6 +226,17 @@ def init_db(path, initial_pin=None):
             db.execute("UPDATE settings SET value='5' WHERE key IN ('badge_ratio','badges_per_coupon')")
             db.execute("INSERT INTO settings VALUES ('family_rules_version',?)",(RULE_VERSION,))
             db.execute("INSERT INTO audit_logs(action,detail,created_at) VALUES ('family_rules_corrected','仅修正后续规则：5 代币换生活徽章；5 已启用徽章换券；每券 3990 分，每次最多 5 张。历史资产和扣款保留。',?)",(utc_now(),))
+        tables = {table:[dict(row) for row in db.execute(f'SELECT * FROM {table}')]
+                  for table in ('badges','tasks','settings')}
+        if migrate_sunflower_badge(tables):
+            for badge in tables['badges']:
+                if badge['code'] == 'fire':
+                    db.execute('UPDATE badges SET name=?,description=?,icon=?,active=? WHERE id=?',
+                               (badge['name'],badge['description'],badge['icon'],badge['active'],badge['id']))
+            for task in tables['tasks']:
+                db.execute('UPDATE tasks SET active=? WHERE id=?',(task['active'],task['id']))
+            db.execute('INSERT INTO settings(key,value) VALUES (?,?)',(SUNFLOWER_MIGRATION_KEY,'done'))
+            db.execute("INSERT INTO audit_logs(action,detail,created_at) VALUES ('sunflower_badge_enabled','第三种徽章启用为太阳花学习徽章；5 颗橙色星星兑换，绿色／红色星星仅兑换生活徽章。保留既有余额与历史徽章。',?)",(utc_now(),))
         if initial_pin and not db.execute('SELECT 1 FROM parent_auth').fetchone():
             if not initial_pin.isdigit() or not 6<=len(initial_pin)<=12:
                 raise ValueError('PARENT_PIN must contain 6–12 digits; omit it for first-time setup')

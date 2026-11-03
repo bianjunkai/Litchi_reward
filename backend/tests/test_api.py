@@ -128,7 +128,7 @@ def test_unknown_child_returns_not_found(family,url,payload):
 
 def test_full_reward_chain_and_reverse_dependencies(family):
     client, headers, path = family
-    fund(client,headers,'study_star',5)
+    fund(client,headers,'tidy_star',5)
     badge_op = post(client,headers,'/api/parent/conversions/stars',{'badge_id':2,'color':'#d4af37'}).json()['operation_id']
     assert balance(client,'study_star')==0
     badge = next(b for b in client.get('/api/badges').json() if b['code']=='life')
@@ -149,7 +149,7 @@ def test_full_reward_chain_and_reverse_dependencies(family):
     assert post(client,headers,f'/api/parent/operations/{approved}/reverse').status_code==200
     assert post(client,headers,f'/api/parent/operations/{coupon_op}/reverse').status_code==200
     assert post(client,headers,f'/api/parent/operations/{badge_op}/reverse').status_code==200
-    assert balance(client,'study_star')==5
+    assert balance(client,'tidy_star')==5
     assert balance(client,'coupon')==0
     history = client.get('/api/badges/history').json()
     assert next(b for b in history if b['code']=='life')['reversed_at']
@@ -244,7 +244,7 @@ def test_rules_tasks_and_badges_are_editable(family):
     assert all(t['id']!=item['id'] for t in client.get('/api/tasks').json())
     badge = {'code':'courage','name':'勇气徽章','icon':'🌟','color':'#d4af37','active':True}
     assert post(client,headers,'/api/parent/badges',badge).status_code==422
-    badge.update(code='fire',name='预留徽章 A',active=True)
+    badge.update(code='fire',name='太阳花徽章',active=True)
     assert client.put('/api/parent/badges/3',headers=headers,json=badge).status_code==200
     badge['active']=False
     assert client.put('/api/parent/badges/3',headers=headers,json=badge).status_code==200
@@ -252,7 +252,7 @@ def test_rules_tasks_and_badges_are_editable(family):
 
 def test_backup_roundtrip_preserves_auth_and_history(family):
     client, headers, path = family
-    fund(client,headers,'study_star',25)
+    fund(client,headers,'tidy_star',25)
     for _ in range(5):
         assert post(client,headers,'/api/parent/conversions/stars',{'badge_id':2}).status_code==200
     post(client,headers,'/api/parent/conversions/coupon',{})

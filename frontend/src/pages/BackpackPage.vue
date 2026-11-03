@@ -13,6 +13,7 @@ const badgeHistory = ref(null)
 const emit = defineEmits(['navigate','refresh','notify'])
 const availableCount = computed(() => props.dashboard.badge_progress.available)
 const starAssets = computed(() => props.dashboard.assets.filter(asset => asset.code !== 'coupon'))
+const starTotal = computed(() => props.dashboard.star_total ?? props.dashboard.progress.total_stars)
 const badgeColorName = color => badgeColors.find(item => item.value === color)?.label || '其他颜色'
 const showBadgeRecords = async id => {
   badgeHistory.value?.selectBadge(id)
@@ -27,9 +28,10 @@ const showBadgeRecords = async id => {
     <nav class="section-tabs" aria-label="背包分类"><a v-for="tab in backpackTabs" :key="tab.id" :href="routeHash('backpack', tab.id)" :aria-current="section === tab.id ? 'page' : undefined">{{ tab.label }}</a></nav>
 
     <template v-if="section === 'stars'">
-      <div class="module-heading"><h2>我的星星袋</h2><span>{{ dashboard.progress.total_stars }} 枚可用星星</span></div>
+      <div class="module-heading"><h2>我的星星袋</h2><span>{{ starTotal }} 枚可用星星</span></div>
       <div class="asset-grid backpack-assets"><article v-for="asset in starAssets" :key="asset.code" class="asset-card" :class="{inactive: !asset.active}" :style="{'--accent': asset.color}"><div class="asset-icon"><PixelArt kind="star" :size="32" :style="{'--pixel-accent': asset.color}" /></div><div><strong>{{ asset.balance }}</strong><span>{{ asset.name }}{{ asset.active ? '' : ' · 暂未启用' }}</span></div></article></div>
-      <section class="progress-card"><div class="progress-copy"><span class="eyebrow">星星 → 生活徽章</span><h2>{{ !dashboard.progress.enabled ? '生活徽章暂未启用' : dashboard.progress.can_redeem ? '可以兑换生活徽章啦！' : `还差 ${Math.max(0, 5 - dashboard.progress.total_stars)} 枚星星` }}</h2><p>橙、绿、红星星可以混色，5 枚只换 1 枚生活徽章。</p></div><div class="star-progress"><div class="stars-row" aria-hidden="true"><span v-for="index in 5" :key="index" :class="{filled: index <= dashboard.progress.current}">★</span></div><small>{{ dashboard.progress.current }} / 5</small></div></section>
+      <section class="progress-card"><div class="progress-copy"><span class="eyebrow">🟢 绿色星星 + 🔴 红色星星 → 生活徽章</span><h2>{{ !dashboard.progress.enabled ? '生活徽章暂未启用' : dashboard.progress.can_redeem ? '可以兑换生活徽章啦！' : `还差 ${Math.max(0, dashboard.progress.target - dashboard.progress.total_stars)} 颗绿／红星星` }}</h2><p>只计算整理和按时吃饭获得的绿色、红色星星；橙色学习星星不计入。</p></div><div class="star-progress"><div class="stars-row" aria-hidden="true"><span v-for="index in dashboard.progress.target" :key="index" :class="{filled: index <= dashboard.progress.current}">★</span></div><small>{{ dashboard.progress.current }} / {{ dashboard.progress.target }}</small></div></section>
+      <section class="progress-card study-badge-progress"><div class="progress-copy"><span class="eyebrow">🟠 橙色学习星星 → 太阳花徽章</span><h2>{{ !dashboard.study_progress.enabled ? '太阳花徽章暂未启用' : dashboard.study_progress.can_redeem ? '可以兑换太阳花徽章啦！' : `还差 ${Math.max(0, dashboard.study_progress.target - dashboard.study_progress.total_stars)} 颗橙色星星` }}</h2><p>学习获得的橙色星星单独累计，集齐 5 颗兑换 1 枚太阳花学习徽章。</p></div><div class="star-progress"><div class="stars-row orange-stars" aria-hidden="true"><span v-for="index in dashboard.study_progress.target" :key="index" :class="{filled: index <= dashboard.study_progress.current}">★</span></div><small>{{ dashboard.study_progress.current }} / {{ dashboard.study_progress.target }}</small></div></section>
       <button class="secondary-button backpack-parent-action" @click="emit('navigate', 'parent', 'exchange')">请家长确认兑换 →</button>
       <BackpackHistory kind="stars" :api="api" :child-id="dashboard.child.id" :assets="dashboard.assets" :badges="badges" :time-zone="dashboard.family_timezone" :refresh-version="refreshVersion" :offline="offline" />
     </template>

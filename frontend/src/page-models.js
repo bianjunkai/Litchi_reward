@@ -25,9 +25,10 @@ export function homeChallenges(tasks, badges) {
 export function homeInventory(dashboard, badges) {
   const badge = code => badges.find(item => item.code === code)
   return [
-    { id: 'stars', label: '星星', count: dashboard.progress.total_stars, icon: 'star', color: '#f0aa37', section: 'stars', active: true },
+    { id: 'stars', label: '星星', count: dashboard.star_total ?? dashboard.progress.total_stars, icon: 'star', color: '#f0aa37', section: 'stars', active: true },
     { id: 'life', label: '生活徽章', count: badge('life')?.available_count || 0, color: badge('life')?.color || '#f0aa37', section: 'badges', active: Boolean(badge('life')?.active) },
     { id: 'sports', label: '体育徽章', count: badge('sports')?.available_count || 0, color: badge('sports')?.color || '#4eb478', section: 'badges', active: Boolean(badge('sports')?.active) },
+    { id: 'fire', label: '太阳花徽章', count: badge('fire')?.available_count || 0, color: badge('fire')?.color || '#f0aa37', section: 'badges', active: Boolean(badge('fire')?.active) },
     { id: 'coupons', label: '兑换券', count: dashboard.coupons.balance, icon: 'ticket', color: '#6685d9', section: 'coupons', active: true },
   ]
 }

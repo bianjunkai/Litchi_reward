@@ -26,50 +26,52 @@ def set_badge_active(client, headers, badge_id, active):
     assert client.put(f'/api/parent/badges/{badge_id}',headers=headers,json=badge).status_code==200
 
 
-def test_twenty_five_mixed_stars_become_five_life_badges_and_one_coupon(family):
+def test_orange_stars_and_green_red_stars_make_separate_badges_then_coupon(family):
     client, headers, path = family
     fund(client,headers,'study_star',10)
     fund(client,headers,'tidy_star',8)
     fund(client,headers,'meal_star',7)
-    for index,color in enumerate(BADGE_COLORS):
+    for index,color in enumerate(BADGE_COLORS[:3]):
         assert post(client,headers,'/api/parent/conversions/stars',{'badge_id':2,'color':color}).status_code==200
-        if index<4:
-            assert post(client,headers,'/api/parent/conversions/coupon',{}).status_code==409
+    for color in BADGE_COLORS[3:]:
+        assert post(client,headers,'/api/parent/conversions/stars',{'badge_id':3,'color':color}).status_code==200
     result = post(client,headers,'/api/parent/conversions/coupon',{})
     assert result.status_code==200
     assert result.json()['badges_consumed']==5
     assert result.json()['coupon_value_fen']==3990
     dashboard = client.get('/api/dashboard/1').json()
     assert dashboard['progress']['total_stars']==0
+    assert dashboard['study_progress']['total_stars']==0 and dashboard['star_total']==0
     assert dashboard['coupons']['balance']==1 and dashboard['coupons']['total_value_fen']==3990
-    badge = next(b for b in dashboard['badges'] if b['code']=='life')
-    assert (badge['earned_count'],badge['unspent_count'],badge['available_count'])==(5,0,0)
+    by_code = {b['code']:b for b in dashboard['badges']}
+    assert (by_code['life']['earned_count'],by_code['life']['unspent_count'],by_code['life']['available_count'])==(3,0,0)
+    assert (by_code['fire']['earned_count'],by_code['fire']['unspent_count'],by_code['fire']['available_count'])==(2,0,0)
     assert {b['color'] for b in client.get('/api/badges/history').json()}==set(BADGE_COLORS)
     assert post(client,headers,'/api/parent/conversions/coupon',{}).status_code==409
     assert_balanced(path)
 
 
-@pytest.mark.parametrize('badge_id',[1,3,4])
+@pytest.mark.parametrize('badge_id',[1,4])
 def test_stars_cannot_buy_sports_or_reserved_badges(family,badge_id):
     client, headers, path = family
     if badge_id!=1:
         set_badge_active(client,headers,badge_id,True)
-    fund(client,headers,'study_star',25)
+    fund(client,headers,'tidy_star',25)
     assert post(client,headers,'/api/parent/conversions/stars',{'badge_id':badge_id}).status_code==422
-    assert balance(client,'study_star')==25
+    assert balance(client,'tidy_star')==25
     assert not client.get('/api/badges/history').json()
     assert_balanced(path)
 
 
 def test_mixed_badges_count_only_when_enabled_and_each_is_spent_once(family):
     client, headers, path = family
-    set_badge_active(client,headers,3,True)
     set_badge_active(client,headers,4,True)
     grant_badges(client,headers,1,2,'#4eb478')
-    grant_badges(client,headers,3,1,'#aab5c4')
     grant_badges(client,headers,4,1,'#d4af37')
-    fund(client,headers,'study_star',5)
+    fund(client,headers,'tidy_star',5)
     assert post(client,headers,'/api/parent/conversions/stars',{'badge_id':2,'color':'#e55353'}).status_code==200
+    fund(client,headers,'study_star',5)
+    assert post(client,headers,'/api/parent/conversions/stars',{'badge_id':3,'color':'#aab5c4'}).status_code==200
     set_badge_active(client,headers,3,False)
     assert post(client,headers,'/api/parent/conversions/coupon',{}).status_code==409
     badge = next(b for b in client.get('/api/badges').json() if b['code']=='fire')
@@ -79,6 +81,21 @@ def test_mixed_badges_count_only_when_enabled_and_each_is_spent_once(family):
     history = client.get('/api/badges/history').json()
     assert len(history)==5 and all(b['spent_operation_id'] is not None for b in history)
     assert post(client,headers,'/api/parent/conversions/coupon',{}).status_code==409
+    assert_balanced(path)
+
+
+def test_life_and_sunflower_conversions_consume_only_their_allowed_star_colors(family):
+    client, headers, path = family
+    fund(client,headers,'study_star',5)
+    fund(client,headers,'tidy_star',3)
+    fund(client,headers,'meal_star',2)
+    assert post(client,headers,'/api/parent/conversions/stars',{'badge_id':2,'color':'#e55353'}).status_code==200
+    assert balance(client,'study_star')==5
+    assert balance(client,'tidy_star')==0 and balance(client,'meal_star')==0
+    assert post(client,headers,'/api/parent/conversions/stars',{'badge_id':3,'color':'#f0aa37'}).status_code==200
+    assert balance(client,'study_star')==0
+    assert post(client,headers,'/api/parent/conversions/stars',{'badge_id':2}).status_code==409
+    assert post(client,headers,'/api/parent/conversions/stars',{'badge_id':3}).status_code==409
     assert_balanced(path)
 
 
@@ -96,19 +113,43 @@ def test_daily_star_limits_survive_duplicate_tasks_and_concurrent_claims(family)
     assert_balanced(path)
 
 
-def test_reserved_badges_start_disabled_and_cannot_be_awarded(family):
+def test_sunflower_starts_enabled_and_cannot_be_directly_awarded(family):
     client, headers, _ = family
-    result = post(client,headers,'/api/parent/tasks',{'name':'预留任务','badge_id':3}).json()['id']
+    badges = {badge['code']:badge for badge in client.get('/api/badges').json()}
+    assert badges['fire']['active'] == 1 and badges['fire']['name'] == '太阳花徽章'
+    assert badges['royal']['active'] == 0
+    assert post(client,headers,'/api/parent/tasks',{'name':'直接发太阳花','badge_id':3}).status_code==422
+    assert post(client,headers,'/api/parent/badge-adjust',{'badge_id':3,'delta':1,'reason':'直接补发','color':'#f0aa37','expected_count':0}).status_code==422
+    assert not any(task.get('badge_id')==3 for task in client.get('/api/tasks').json())
+    result = post(client,headers,'/api/parent/tasks',{'name':'预留任务','badge_id':4}).json()['id']
     assert post(client,headers,f'/api/tasks/{result}/claim').status_code==409
     assert not any(t['id']==result for t in client.get('/api/tasks').json())
+
+
+def test_existing_family_upgrade_enables_sunflower_and_keeps_its_history(family):
+    client, headers, path = family
+    fund(client,headers,'study_star',2)
+    with connect(path) as db:
+        db.execute("UPDATE badges SET name='预留徽章 A',active=0,icon='🌸' WHERE code='fire'")
+        fire_id = db.execute("SELECT id FROM badges WHERE code='fire'").fetchone()[0]
+        db.execute('UPDATE tasks SET badge_id=?,active=1 WHERE id=1',(fire_id,))
+        db.execute("INSERT INTO child_badges(child_id,badge_id,reason,earned_at,color) VALUES (1,?,'旧历史记录','2026-10-01T00:00:00Z','#e55353')",(fire_id,))
+        db.execute("DELETE FROM settings WHERE key='sunflower_badge_v1'")
+    init_db(path)
+    badge = next(item for item in client.get('/api/badges').json() if item['code']=='fire')
+    assert badge['active'] == 1 and badge['name'] == '太阳花徽章' and badge['earned_count'] == 1
+    assert not any(task['id']==1 for task in client.get('/api/tasks').json())
+    assert path.with_name(path.name+'.pre-sunflower-v1.db').is_file()
+    assert balance(client,'study_star')==2
+    assert_balanced(path)
 
 
 @pytest.mark.parametrize('color',BADGE_COLORS)
 def test_all_badge_colors_are_cosmetic_and_do_not_change_cost(family,color):
     client, headers, _ = family
-    fund(client,headers,'study_star',5)
+    fund(client,headers,'tidy_star',5)
     assert post(client,headers,'/api/parent/conversions/stars',{'badge_id':2,'color':color}).status_code==200
-    assert balance(client,'study_star')==0
+    assert balance(client,'tidy_star')==0
     grant_badges(client,headers,1,1,color)
     assert all(b['color']==color for b in client.get('/api/badges/history').json())
 
