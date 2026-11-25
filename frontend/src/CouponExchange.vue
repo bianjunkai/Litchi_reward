@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import BadgeEmblem from './BadgeEmblem.vue'
 import ParentDialog from './ParentDialog.vue'
 import { formatHistoryTime } from './backpack.js'
-import { colorName, couponBadgeChoices, couponRequestStates, couponSelection, isCouponRequestPage } from './coupon-exchange.js'
+import { colorName, couponBadgeChoices, couponRequestStates, couponSelection, invalidCouponChoices, isCouponRequestPage } from './coupon-exchange.js'
 
 const props = defineProps({dashboard:Object,api:Function,perform:Function,parentMode:Boolean,disabled:Boolean,busy:Boolean,offline:Boolean,refreshVersion:Number})
 const emit = defineEmits(['refresh','notify'])
@@ -16,6 +16,7 @@ watch(choices, current => {
   for (const key of Object.keys(counts.value)) if (!keys.has(key)) delete counts.value[key]
 })
 const selected = computed(() => couponSelection(choices.value,counts.value))
+const invalidChoices = computed(() => invalidCouponChoices(choices.value,counts.value))
 const blocked = computed(() => props.disabled || props.busy || props.offline || loading.value || sending.value || !ready.value)
 let version = 0, alive = true
 const load = async (more=false) => {
@@ -78,6 +79,7 @@ const close = () => { if (!sending.value && !props.busy) selection.value=null }
       <p v-if="!choices.length" class="empty">还没有可用徽章，先完成冒险吧。</p>
       <label v-for="choice in choices" :key="choice.key" class="coupon-badge-choice"><span><BadgeEmblem :code="choice.code" :color="choice.color" :size="26" />{{ colorName(choice.color) }}{{ choice.name }}<small>可用 {{ choice.available }} 枚</small></span><input v-model.number="counts[choice.key]" type="number" min="0" :max="Math.min(5,choice.available)" step="1" :aria-label="`选择${colorName(choice.color)}${choice.name}数量`" :disabled="blocked" placeholder="0" /></label>
       <p aria-live="polite">已选 {{ selected.total }} / 5 枚徽章</p>
+      <p v-if="invalidChoices.length" class="inline-error" role="alert">选择超过可用数量：{{ invalidChoices.map(item => `${colorName(item.color)}${item.name}现有 ${item.available} 枚，已选 ${item.chosen} 枚`).join('；') }}。请调整数量后再申请。</p>
       <button class="primary-button" :disabled="blocked || !selected.valid">请家长审批换券</button>
     </form>
     <p v-if="!parentMode && data.pending_count" class="coupon-waiting" role="status">申请正在等待家长审批。此时徽章尚未扣除，也没有增加兑换券。</p>

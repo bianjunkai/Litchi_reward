@@ -19,6 +19,13 @@ export function couponSelection(choices, counts) {
     && Object.entries(counts).every(([key,count]) => count === 0 || choices.some(item => item.key === key))
   return { selections, total, valid }
 }
+// Typing into a number input bypasses max, so selections like 5/5 can still be invalid.
+// Surface every choice that exceeds availability (or went negative) instead of a silent disabled button.
+export function invalidCouponChoices(choices, counts) {
+  return choices.filter(item => Number.isSafeInteger(counts[item.key])
+      && (counts[item.key] < 0 || counts[item.key] > item.available))
+    .map(item => ({key:item.key,name:item.name,color:item.color,chosen:counts[item.key],available:item.available}))
+}
 export const isCouponRequestPage = body => isParentPage(body) && Number.isSafeInteger(body.pending_count) && body.pending_count >= 0
   && body.items.every(item => Object.hasOwn(couponRequestStates,item.status) && typeof item.can_approve === 'boolean'
     && typeof item.requested_at === 'string' && Array.isArray(item.selections)
